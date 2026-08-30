@@ -6,6 +6,8 @@ describe('runtime configuration', () => {
     PORT: '3001',
     ADMIN_HOSTNAME: 'admin.notifyfin.test',
     PUBLIC_HOSTNAME: 'public.notifyfin.test',
+    DATABASE_URL:
+      'postgresql://notifyfin:notifyfin_test@127.0.0.1:55432/notifyfin_test',
   };
 
   it('returns normalized, immutable configuration', () => {
@@ -19,6 +21,8 @@ describe('runtime configuration', () => {
       port: 3001,
       administrativeHostname: 'admin.notifyfin.test',
       publicHostname: 'public.notifyfin.test',
+      databaseUrl:
+        'postgresql://notifyfin:notifyfin_test@127.0.0.1:55432/notifyfin_test',
     });
     expect(Object.isFrozen(config)).toBe(true);
   });
@@ -66,6 +70,7 @@ describe('runtime configuration', () => {
     ['PORT', { PORT: '70000' }],
     ['ADMIN_HOSTNAME', { ADMIN_HOSTNAME: 'https://admin.notifyfin.test' }],
     ['PUBLIC_HOSTNAME', { PUBLIC_HOSTNAME: 'public.notifyfin.test/path' }],
+    ['DATABASE_URL', { DATABASE_URL: 'mysql://localhost/notifyfin' }],
   ])('rejects invalid %s configuration', (name, override) => {
     expect(() =>
       parseRuntimeConfig({ ...validEnvironment, ...override }),

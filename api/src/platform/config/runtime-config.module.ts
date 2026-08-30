@@ -27,6 +27,7 @@ import {
             'administrativeHostname',
           ),
           publicHostname: config.getOrThrow<string>('publicHostname'),
+          databaseUrl: config.getOrThrow<string>('databaseUrl'),
         }),
     },
   ],

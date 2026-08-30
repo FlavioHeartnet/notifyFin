@@ -30,6 +30,14 @@ const runtimeConfigSchema = z
       .default(3000),
     ADMIN_HOSTNAME: hostname('ADMIN_HOSTNAME'),
     PUBLIC_HOSTNAME: hostname('PUBLIC_HOSTNAME'),
+    DATABASE_URL: z
+      .string()
+      .trim()
+      .min(1, 'DATABASE_URL is required')
+      .regex(
+        /^postgres(?:ql)?:\/\//,
+        'DATABASE_URL must be a PostgreSQL connection URL',
+      ),
   })
   .superRefine((config, context) => {
     if (
@@ -49,6 +57,7 @@ export interface RuntimeConfig {
   readonly port: number;
   readonly administrativeHostname: string;
   readonly publicHostname: string;
+  readonly databaseUrl: string;
 }
 
 export const RUNTIME_CONFIG = Symbol('RUNTIME_CONFIG');
@@ -60,6 +69,7 @@ export function parseRuntimeConfig(
     ...environment,
     ADMIN_HOSTNAME: normalizeRequired(environment.ADMIN_HOSTNAME),
     PUBLIC_HOSTNAME: normalizeRequired(environment.PUBLIC_HOSTNAME),
+    DATABASE_URL: normalizeRequired(environment.DATABASE_URL),
   });
 
   if (!result.success) {
@@ -73,6 +83,7 @@ export function parseRuntimeConfig(
     port: result.data.PORT,
     administrativeHostname: result.data.ADMIN_HOSTNAME,
     publicHostname: result.data.PUBLIC_HOSTNAME,
+    databaseUrl: result.data.DATABASE_URL,
   });
 }
 
