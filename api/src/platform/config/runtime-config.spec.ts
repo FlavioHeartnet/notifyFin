@@ -41,6 +41,26 @@ describe('runtime configuration', () => {
     ).toThrow('ADMIN_HOSTNAME and PUBLIC_HOSTNAME must be different');
   });
 
+  it('does not include invalid configuration values in errors', () => {
+    const sensitiveValue = 'https://private-admin-host.invalid/secret';
+
+    expect(() =>
+      parseRuntimeConfig({
+        ...validEnvironment,
+        ADMIN_HOSTNAME: sensitiveValue,
+      }),
+    ).toThrow('ADMIN_HOSTNAME must be a valid hostname');
+
+    try {
+      parseRuntimeConfig({
+        ...validEnvironment,
+        ADMIN_HOSTNAME: sensitiveValue,
+      });
+    } catch (error) {
+      expect((error as Error).message).not.toContain(sensitiveValue);
+    }
+  });
+
   it.each([
     ['NODE_ENV', { NODE_ENV: 'staging' }],
     ['PORT', { PORT: '70000' }],

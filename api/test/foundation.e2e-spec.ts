@@ -31,5 +31,20 @@ describe('HTTP surface foundation (e2e)', () => {
       .get('/health/live')
       .set('Host', 'public.notifyfin.test')
       .expect(404);
+
+    await request(app.getHttpServer())
+      .get('/health/live')
+      .set('Host', 'unexpected.notifyfin.test')
+      .expect(404);
   });
+
+  it.each(['admin.notifyfin.test:bogus', 'admin.notifyfin.test:443:evil'])(
+    'rejects the malformed host authority %s',
+    async (host) => {
+      await request(app.getHttpServer())
+        .get('/health/live')
+        .set('Host', host)
+        .expect(404);
+    },
+  );
 });

@@ -46,7 +46,18 @@ export class HttpSurfaceGuard implements CanActivate {
       : this.config.publicHostname;
   }
 
-  private normalizeHostname(host: string | undefined) {
-    return host?.split(':', 1)[0]?.trim().toLowerCase();
+  private normalizeHostname(authority: string | undefined) {
+    const match = authority?.trim().match(/^([^:]+)(?::([0-9]{1,5}))?$/);
+
+    if (!match) {
+      return undefined;
+    }
+
+    const port = match[2] === undefined ? undefined : Number(match[2]);
+    if (port !== undefined && (port < 1 || port > 65535)) {
+      return undefined;
+    }
+
+    return match[1].toLowerCase();
   }
 }
