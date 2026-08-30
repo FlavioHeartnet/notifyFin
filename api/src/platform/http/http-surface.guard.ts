@@ -2,16 +2,22 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { RUNTIME_CONFIG } from '../config/runtime-config';
+import type { RuntimeConfig } from '../config/runtime-config';
 import { HttpRoutePolicy } from './http-route-policy';
 
 @Injectable()
 export class HttpSurfaceGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const policy = this.reflector.getAllAndOverride(HttpRoutePolicy, [
@@ -35,12 +41,9 @@ export class HttpSurfaceGuard implements CanActivate {
   }
 
   private configuredHostnameFor(surface: 'administrative' | 'public') {
-    const value =
-      surface === 'administrative'
-        ? process.env.ADMIN_HOSTNAME
-        : process.env.PUBLIC_HOSTNAME;
-
-    return value?.trim().toLowerCase();
+    return surface === 'administrative'
+      ? this.config.administrativeHostname
+      : this.config.publicHostname;
   }
 
   private normalizeHostname(host: string | undefined) {

@@ -8,9 +8,6 @@ describe('HTTP surface foundation (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
-    process.env.ADMIN_HOSTNAME = 'admin.notifyfin.test';
-    process.env.PUBLIC_HOSTNAME = 'public.notifyfin.test';
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -21,8 +18,6 @@ describe('HTTP surface foundation (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
-    delete process.env.ADMIN_HOSTNAME;
-    delete process.env.PUBLIC_HOSTNAME;
   });
 
   it('reports API liveness only on the administrative hostname', async () => {
