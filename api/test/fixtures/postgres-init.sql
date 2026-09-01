@@ -1,1 +1,2 @@
 CREATE DATABASE notifyfin_unmigrated;
+CREATE DATABASE notifyfin_queue_unmigrated;

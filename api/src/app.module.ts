@@ -4,9 +4,10 @@ import { RuntimeConfigModule } from './platform/config/runtime-config.module';
 import { DatabaseModule } from './platform/database/database.module';
 import { HealthController } from './platform/health/health.controller';
 import { HttpSurfaceGuard } from './platform/http/http-surface.guard';
+import { QueueModule } from './platform/queue/queue.module';
 
 @Module({
-  imports: [RuntimeConfigModule, DatabaseModule],
+  imports: [RuntimeConfigModule, DatabaseModule, QueueModule.forProcess('api')],
   controllers: [HealthController],
   providers: [
     {
