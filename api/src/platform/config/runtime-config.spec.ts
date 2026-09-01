@@ -45,6 +45,23 @@ describe('runtime configuration', () => {
     ).toThrow('ADMIN_HOSTNAME and PUBLIC_HOSTNAME must be different');
   });
 
+  it('requires PostgreSQL TLS in production', () => {
+    expect(() =>
+      parseRuntimeConfig({
+        ...validEnvironment,
+        NODE_ENV: 'production',
+      }),
+    ).toThrow('DATABASE_URL must require TLS in production');
+
+    expect(() =>
+      parseRuntimeConfig({
+        ...validEnvironment,
+        NODE_ENV: 'production',
+        DATABASE_URL: `${validEnvironment.DATABASE_URL}?sslmode=require`,
+      }),
+    ).not.toThrow();
+  });
+
   it('does not include invalid configuration values in errors', () => {
     const sensitiveValue = 'https://private-admin-host.invalid/secret';
 

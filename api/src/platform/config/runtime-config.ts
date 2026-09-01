@@ -37,9 +37,24 @@ const runtimeConfigSchema = z
       .regex(
         /^postgres(?:ql)?:\/\//,
         'DATABASE_URL must be a PostgreSQL connection URL',
+      )
+      .refine(
+        (value) => isPostgreSqlUrl(value),
+        'DATABASE_URL must be a PostgreSQL connection URL',
       ),
   })
   .superRefine((config, context) => {
+    if (
+      config.NODE_ENV === 'production' &&
+      !databaseUrlRequiresTls(config.DATABASE_URL)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['DATABASE_URL'],
+        message: 'DATABASE_URL must require TLS in production',
+      });
+    }
+
     if (
       config.ADMIN_HOSTNAME.length > 0 &&
       config.ADMIN_HOSTNAME === config.PUBLIC_HOSTNAME
@@ -89,4 +104,25 @@ export function parseRuntimeConfig(
 
 function normalizeRequired(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function isPostgreSqlUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'postgres:' || url.protocol === 'postgresql:') &&
+      url.hostname.length > 0
+    );
+  } catch {
+    return false;
+  }
+}
+
+function databaseUrlRequiresTls(value: string) {
+  if (!isPostgreSqlUrl(value)) {
+    return false;
+  }
+
+  const sslMode = new URL(value).searchParams.get('sslmode');
+  return ['require', 'verify-ca', 'verify-full'].includes(sslMode ?? '');
 }

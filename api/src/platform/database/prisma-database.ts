@@ -20,7 +20,13 @@ export class PrismaDatabase
   }
 
   async check(): Promise<void> {
-    await this.$queryRawUnsafe('SELECT 1');
+    const migrations = await this.$queryRawUnsafe<Array<{ ready: number }>>(
+      'SELECT 1 AS "ready" FROM "_prisma_migrations" WHERE "finished_at" IS NOT NULL LIMIT 1',
+    );
+
+    if (migrations.length === 0) {
+      throw new Error('Database migrations are not applied');
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
