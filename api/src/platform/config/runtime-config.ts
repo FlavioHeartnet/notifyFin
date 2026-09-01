@@ -123,6 +123,9 @@ function databaseUrlRequiresTls(value: string) {
     return false;
   }
 
-  const sslMode = new URL(value).searchParams.get('sslmode');
-  return ['require', 'verify-ca', 'verify-full'].includes(sslMode ?? '');
+  const sslModes = new URL(value).searchParams.getAll('sslmode');
+  return (
+    sslModes.length === 1 &&
+    ['require', 'verify-ca', 'verify-full'].includes(sslModes[0])
+  );
 }

@@ -12,5 +12,7 @@ services:
       interval: 1s
       timeout: 3s
       retries: 20
+    volumes:
+      - ./api/test/fixtures/postgres-init.sql:/docker-entrypoint-initdb.d/001-create-unmigrated-database.sql:ro
     tmpfs:
       - /var/lib/postgresql/data

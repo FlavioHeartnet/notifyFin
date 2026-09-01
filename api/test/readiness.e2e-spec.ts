@@ -33,23 +33,9 @@ describe('API readiness (e2e)', () => {
   });
 
   it('reports unavailable without exposing connection errors', async () => {
-    const unavailableDatabaseConfig: RuntimeConfig = {
-      environment: 'test',
-      port: 3000,
-      administrativeHostname: 'admin.notifyfin.test',
-      publicHostname: 'public.notifyfin.test',
-      databaseUrl:
-        'postgresql://notifyfin:private-password@127.0.0.1:1/notifyfin_test',
-    };
-    const moduleFixture = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(RUNTIME_CONFIG)
-      .useValue(unavailableDatabaseConfig)
-      .compile();
-    const unavailableApp: INestApplication<App> =
-      moduleFixture.createNestApplication();
-    await unavailableApp.init();
+    const unavailableApp = await createAppWithDatabase(
+      'postgresql://notifyfin:private-password@127.0.0.1:1/notifyfin_test',
+    );
 
     await request(unavailableApp.getHttpServer())
       .get('/health/live')
@@ -66,4 +52,37 @@ describe('API readiness (e2e)', () => {
     expect(response.text).not.toContain('private-password');
     await unavailableApp.close();
   });
+
+  it('reports unavailable when PostgreSQL is reachable but unmigrated', async () => {
+    const unmigratedApp = await createAppWithDatabase(
+      'postgresql://notifyfin:notifyfin_test@127.0.0.1:55432/notifyfin_unmigrated',
+    );
+
+    await request(unmigratedApp.getHttpServer())
+      .get('/health/ready')
+      .set('Host', 'admin.notifyfin.test')
+      .expect(503)
+      .expect({ status: 'error', checks: { database: 'down' } });
+
+    await unmigratedApp.close();
+  });
 });
+
+async function createAppWithDatabase(databaseUrl: string) {
+  const runtimeConfig: RuntimeConfig = {
+    environment: 'test',
+    port: 3000,
+    administrativeHostname: 'admin.notifyfin.test',
+    publicHostname: 'public.notifyfin.test',
+    databaseUrl,
+  };
+  const moduleFixture = await Test.createTestingModule({
+    imports: [AppModule],
+  })
+    .overrideProvider(RUNTIME_CONFIG)
+    .useValue(runtimeConfig)
+    .compile();
+  const app: INestApplication<App> = moduleFixture.createNestApplication();
+  await app.init();
+  return app;
+}

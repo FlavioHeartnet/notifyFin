@@ -62,6 +62,16 @@ describe('runtime configuration', () => {
     ).not.toThrow();
   });
 
+  it('rejects conflicting PostgreSQL TLS parameters in production', () => {
+    expect(() =>
+      parseRuntimeConfig({
+        ...validEnvironment,
+        NODE_ENV: 'production',
+        DATABASE_URL: `${validEnvironment.DATABASE_URL}?sslmode=require&sslmode=disable`,
+      }),
+    ).toThrow('DATABASE_URL must require TLS in production');
+  });
+
   it('does not include invalid configuration values in errors', () => {
     const sensitiveValue = 'https://private-admin-host.invalid/secret';
 
