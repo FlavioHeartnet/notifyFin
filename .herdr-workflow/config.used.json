@@ -1,0 +1,24 @@
+{
+  "agentKind": "pi",
+  "defaultModel": "",
+  "defaultThinking": "medium",
+  "roles": {
+    "discover": { "model": "", "thinking": "medium" },
+    "planner": { "model": "", "thinking": "high" },
+    "implementer": { "model": "", "thinking": "high" },
+    "validator": { "model": "", "thinking": "low" },
+    "reviewer": { "model": "", "thinking": "high" },
+    "pr": { "model": "", "thinking": "medium" }
+  },
+  "validation": {
+    "commands": []
+  },
+  "pullRequest": {
+    "create": false,
+    "requireApproval": true,
+    "base": "master"
+  },
+  "worktree": {
+    "enabled": true
+  }
+}
