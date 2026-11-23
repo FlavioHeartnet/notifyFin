@@ -100,9 +100,19 @@ function LoginForm() {
         },
       });
       if (error) {
-        setErrorMsg(
-          'Não foi possível enviar o link mágico. Verifique se o e-mail é do Titular cadastrado e se a URL de redirecionamento está autorizada no Supabase.'
-        );
+        if (
+          error.status === 429 ||
+          error.code === 'over_email_send_rate_limit' ||
+          error.message.toLowerCase().includes('rate limit')
+        ) {
+          setErrorMsg(
+            'Limite de envio de e-mails do Supabase atingido (429). O SMTP padrão do Supabase permite poucos envios por hora — aguarde alguns minutos ou entre pela aba "Senha".'
+          );
+        } else {
+          setErrorMsg(
+            `Não foi possível enviar o link mágico (${error.message}). Verifique se o e-mail é do Titular cadastrado e se a URL de redirecionamento está autorizada no Supabase.`
+          );
+        }
         return;
       }
       setSuccessMsg(

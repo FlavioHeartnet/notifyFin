@@ -44,9 +44,19 @@ export default function EsqueciSenhaPage() {
         { redirectTo }
       );
       if (error) {
-        setErrorMsg(
-          'Não foi possível enviar o e-mail de recuperação. Tente novamente em instantes.'
-        );
+        if (
+          error.status === 429 ||
+          error.code === 'over_email_send_rate_limit' ||
+          error.message.toLowerCase().includes('rate limit')
+        ) {
+          setErrorMsg(
+            'Limite de envio de e-mails do Supabase atingido (429). Aguarde alguns minutos antes de solicitar outro link ou configure um SMTP próprio no Supabase.'
+          );
+        } else {
+          setErrorMsg(
+            `Não foi possível enviar o e-mail de recuperação (${error.message}).`
+          );
+        }
         return;
       }
       setSent(true);
