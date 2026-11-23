@@ -6,12 +6,13 @@ const components: any = (theme: Theme) => {
   return {
     MuiCssBaseline: {
       styleOverrides: {
-        "*": {
-          boxSizing: "border-box",
-        },
         html: {
           height: "100%",
           width: "100%",
+          boxSizing: "border-box",
+        },
+        "*, *::before, *::after": {
+          boxSizing: "inherit",
         },
         a: {
           textDecoration: "none",
@@ -317,7 +318,7 @@ const components: any = (theme: Theme) => {
       styleOverrides: {
         root: {
           width: "100%",
-          padding: "15px",
+          padding: 0,
           backgroundImage: "none",
         },
       },
@@ -438,21 +439,72 @@ const components: any = (theme: Theme) => {
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
+          minHeight: 46,
+          "&.MuiInputBase-sizeSmall": {
+            minHeight: 40,
+          },
+          "&.MuiInputBase-multiline": {
+            minHeight: "auto",
+          },
           "& .MuiOutlinedInput-notchedOutline": {
             borderColor:
               theme.palette.mode === "dark"
                 ? theme.palette.grey[200]
                 : theme.palette.grey[300],
           },
- '&.Mui-focused .MuiOutlinedInput-notchedOutline, &:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: theme.palette.primary.main,
-          }
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline, &:hover .MuiOutlinedInput-notchedOutline":
+            {
+              borderColor: theme.palette.primary.main,
+            },
         },
         input: {
-          padding: "12px 14px",
+          boxSizing: "content-box",
+          padding: "11.5px 14px",
+          "&.MuiInputBase-inputAdornedStart": {
+            paddingLeft: 0,
+          },
+          "&.MuiInputBase-inputAdornedEnd": {
+            paddingRight: 0,
+          },
         },
         inputSizeSmall: {
-          padding: "8px 14px",
+          boxSizing: "content-box",
+          padding: "8.5px 14px",
+          "&.MuiInputBase-inputAdornedStart": {
+            paddingLeft: 0,
+          },
+          "&.MuiInputBase-inputAdornedEnd": {
+            paddingRight: 0,
+          },
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        select: {
+          display: "flex",
+          alignItems: "center",
+          minHeight: "1.4375em",
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        outlined: {
+          transform: "translate(14px, 12px) scale(1)",
+          "&.MuiInputLabel-sizeSmall": {
+            transform: "translate(14px, 9px) scale(1)",
+          },
+          "&.MuiInputLabel-shrink": {
+            transform: "translate(14px, -9px) scale(0.75)",
+          },
+        },
+      },
+    },
+    MuiInputAdornment: {
+      styleOverrides: {
+        root: {
+          color: theme.palette.text.secondary,
         },
       },
     },

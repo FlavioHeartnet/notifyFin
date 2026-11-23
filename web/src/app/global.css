@@ -5,10 +5,6 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-* {
-  box-sizing: border-box;
-}
-
 /* Smooth touch scroll on mobile tables and chip rails */
 .scroll-rail {
   overflow-x: auto;
