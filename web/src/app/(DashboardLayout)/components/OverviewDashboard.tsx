@@ -30,6 +30,7 @@ import {
   IconWallet,
 } from '@tabler/icons-react';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import ReconcileTriggerCard from './ReconcileTriggerCard';
 import {
   CHART_PALETTE,
   ECONOMIC_EFFECT_LABELS,
@@ -110,6 +111,8 @@ export interface OverviewDashboardProps {
   openReviewsCount: number;
   recurringCandidatesCount: number;
   activeInstallmentsCount: number;
+  unlinkedPostedCount: number;
+  unlinkedPendingCount: number;
 }
 
 export default function OverviewDashboard({
@@ -126,6 +129,8 @@ export default function OverviewDashboard({
   openReviewsCount,
   recurringCandidatesCount,
   activeInstallmentsCount,
+  unlinkedPostedCount,
+  unlinkedPendingCount,
 }: OverviewDashboardProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -471,6 +476,13 @@ export default function OverviewDashboard({
           );
         })}
       </Box>
+
+      {/* On-demand Open Finance Reconciliation Banner (appears when new POSTED refs exist) */}
+      <ReconcileTriggerCard
+        unlinkedPostedCount={unlinkedPostedCount}
+        unlinkedPendingCount={unlinkedPendingCount}
+        compact
+      />
 
       {/* Pending Action Banner */}
       {(openReviewsCount > 0 || recurringCandidatesCount > 0) && (

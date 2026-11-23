@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { createClient } from '@/lib/supabase/server';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import ReconcileTriggerCard from '../components/ReconcileTriggerCard';
 import { formatDateTimeBR } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,8 @@ export default async function SincronizacaoPage() {
     reconRunsRes,
     catMappingsRes,
     categoriesRes,
+    unlinkedRefsRes,
+    resolvedPluggyReviewsRes,
   ] = await Promise.all([
     supabase
       .from('pluggy_connections')
@@ -68,7 +71,27 @@ export default async function SincronizacaoPage() {
       .select('id, source_category, category_id, confidence, approved, active')
       .order('source_category', { ascending: true }),
     supabase.from('categories').select('id, name'),
+    supabase
+      .from('pluggy_transaction_refs')
+      .select('id, status')
+      .is('transaction_id', null)
+      .is('deleted_at', null),
+    supabase
+      .from('pluggy_reconciliation_reviews')
+      .select('pluggy_ref_id')
+      .in('status', ['resolved', 'dismissed']),
   ]);
+
+  const resolvedRefIds = new Set(
+    (resolvedPluggyReviewsRes.data ?? []).map((r) => r.pluggy_ref_id)
+  );
+  const unlinkedRefs = unlinkedRefsRes.data ?? [];
+  const unlinkedPostedCount = unlinkedRefs.filter(
+    (r) => r.status === 'POSTED' && !resolvedRefIds.has(r.id)
+  ).length;
+  const unlinkedPendingCount = unlinkedRefs.filter(
+    (r) => r.status !== 'POSTED'
+  ).length;
 
   const connections = connectionsRes.data ?? [];
   const connById = new Map(connections.map((c) => [c.id, c.institution_name]));
@@ -79,6 +102,12 @@ export default async function SincronizacaoPage() {
 
   return (
     <Stack spacing={2.5}>
+      {/* On-demand Reconcile & Classify Trigger */}
+      <ReconcileTriggerCard
+        unlinkedPostedCount={unlinkedPostedCount}
+        unlinkedPendingCount={unlinkedPendingCount}
+      />
+
       {/* Active Connections */}
       <Grid container spacing={2}>
         {connections.map((conn) => (

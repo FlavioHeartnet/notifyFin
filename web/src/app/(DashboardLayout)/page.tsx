@@ -37,6 +37,8 @@ export default async function HomePage() {
     openReviewsRes,
     recurringCandidatesRes,
     installmentsRes,
+    unlinkedRefsRes,
+    resolvedPluggyReviewsRes,
   ] = await Promise.all([
     supabase
       .from('financial_profiles')
@@ -85,7 +87,27 @@ export default async function HomePage() {
       .from('installment_plans')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active'),
+    supabase
+      .from('pluggy_transaction_refs')
+      .select('id, status')
+      .is('transaction_id', null)
+      .is('deleted_at', null),
+    supabase
+      .from('pluggy_reconciliation_reviews')
+      .select('pluggy_ref_id')
+      .in('status', ['resolved', 'dismissed']),
   ]);
+
+  const resolvedRefIds = new Set(
+    (resolvedPluggyReviewsRes.data ?? []).map((r) => r.pluggy_ref_id)
+  );
+  const unlinkedRefs = unlinkedRefsRes.data ?? [];
+  const unlinkedPostedCount = unlinkedRefs.filter(
+    (r) => r.status === 'POSTED' && !resolvedRefIds.has(r.id)
+  ).length;
+  const unlinkedPendingCount = unlinkedRefs.filter(
+    (r) => r.status !== 'POSTED'
+  ).length;
 
   const accountNameById = new Map<number, string>();
   (accountsRes.data ?? []).forEach((a) => accountNameById.set(a.id, a.name));
@@ -282,6 +304,8 @@ export default async function HomePage() {
       openReviewsCount={openReviewsRes.count ?? 0}
       recurringCandidatesCount={recurringCandidatesRes.count ?? 0}
       activeInstallmentsCount={installmentsRes.count ?? 0}
+      unlinkedPostedCount={unlinkedPostedCount}
+      unlinkedPendingCount={unlinkedPendingCount}
     />
   );
 }

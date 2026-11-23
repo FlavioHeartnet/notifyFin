@@ -323,3 +323,283 @@ export async function saveRecurringOverrideAction(input: {
         : 'Transação excluída dos candidatos de recorrência.',
   };
 }
+
+export interface ReconcilePreviewItem {
+  ref_id: number;
+  occurred_on: string;
+  account_name: string;
+  description: string;
+  amount: number;
+  direction: 'debit' | 'credit';
+  action:
+    | 'link_existing'
+    | 'hold_reconciliation_review'
+    | 'import_non_spending'
+    | 'import_classified_rule'
+    | 'import_classified_history'
+    | 'import_classified_pluggy_map'
+    | 'import_classified_ai'
+    | 'import_needs_classification_review';
+  economic_effect: string;
+  is_spending: boolean;
+  is_own_transfer: boolean;
+  category_id: number | null;
+  category_name: string | null;
+  confidence: number | null;
+  source: string;
+  rationale: string;
+  suggested_rule_pattern: string | null;
+  linked_transaction_id?: number | null;
+}
+
+export interface ReconcileResponse {
+  mode: 'preview' | 'apply';
+  run_id: number | null;
+  model: string;
+  confidence_threshold: number;
+  warning?: string | null;
+  summary: {
+    total_unlinked_posted: number;
+    skipped_already_reviewed: number;
+    pending_held: number;
+    linked_existing: number;
+    held_for_reconciliation_review: number;
+    imported_non_spending: number;
+    classified_by_rule: number;
+    classified_by_history: number;
+    classified_by_pluggy_map: number;
+    classified_by_ai: number;
+    sent_to_classification_review: number;
+    ai_items_evaluated: number;
+  };
+  items: ReconcilePreviewItem[];
+}
+
+export interface ReconcileActionResult {
+  ok: boolean;
+  message: string;
+  data?: ReconcileResponse;
+}
+
+export async function runPluggyReconcileAction(
+  mode: 'preview' | 'apply'
+): Promise<ReconcileActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { ok: false, message: 'Sessão expirada. Faça login novamente.' };
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    return { ok: false, message: 'Token de sessão indisponível. Entre novamente.' };
+  }
+
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/pluggy-reconcile`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ mode }),
+      cache: 'no-store',
+    });
+
+    const payload = await res.json().catch(() => null);
+    if (!res.ok) {
+      return {
+        ok: false,
+        message:
+          payload?.error ||
+          `Erro ao executar conciliação (HTTP ${res.status}).`,
+      };
+    }
+
+    if (mode === 'apply') {
+      revalidatePath('/');
+      revalidatePath('/movimentacoes');
+      revalidatePath('/contas');
+      revalidatePath('/revisoes');
+      revalidatePath('/sincronizacao');
+    }
+
+    return {
+      ok: true,
+      message:
+        mode === 'preview'
+          ? 'Simulação concluída com sucesso.'
+          : 'Conciliação aplicada com sucesso!',
+      data: payload as ReconcileResponse,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      message:
+        err instanceof Error
+          ? `Falha de comunicação com a Edge Function: ${err.message}`
+          : 'Falha ao chamar pluggy-reconcile.',
+    };
+  }
+}
+
+export async function resolveClassificationReviewAction(input: {
+  reviewId: number;
+  transactionId: number | null;
+  categoryId: number;
+  createRule?: boolean;
+  rulePattern?: string;
+  reason?: string;
+}): Promise<ActionResult> {
+  const { supabase, profileId, error } = await getAuthenticatedProfile();
+  if (error || !profileId) return { ok: false, message: error ?? 'Não autenticado.' };
+
+  const catId = Number(input.categoryId);
+  if (!Number.isInteger(catId) || catId <= 0) {
+    return { ok: false, message: 'Selecione uma categoria válida.' };
+  }
+
+  // 1. Reclassify the transaction if linked
+  if (input.transactionId && Number.isInteger(input.transactionId)) {
+    const reclassRes = await reclassifyTransactionAction({
+      transactionId: input.transactionId,
+      categoryId: catId,
+      reason: input.reason || 'Aprovação de revisão de classificação no webapp',
+    });
+    if (!reclassRes.ok) {
+      return reclassRes;
+    }
+  }
+
+  // 2. Mark review resolved
+  const { error: revErr } = await supabase
+    .from('review_queue')
+    .update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+    })
+    .eq('id', input.reviewId)
+    .eq('profile_id', profileId);
+
+  if (revErr) {
+    return { ok: false, message: `Erro ao encerrar revisão: ${revErr.message}` };
+  }
+
+  // 3. Optionally save reusable classification rule
+  let ruleCreated = false;
+  const cleanPattern = input.rulePattern?.trim();
+  if (input.createRule && cleanPattern && cleanPattern.length >= 2) {
+    const { error: ruleErr } = await supabase
+      .from('classification_rules')
+      .upsert(
+        {
+          profile_id: profileId,
+          priority: 50,
+          field_name: 'raw_description',
+          match_type: 'contains',
+          pattern: cleanPattern,
+          category_id: catId,
+          active: true,
+        },
+        { onConflict: 'profile_id,field_name,match_type,pattern' }
+      );
+    if (!ruleErr) {
+      ruleCreated = true;
+    }
+  }
+
+  revalidatePath('/');
+  revalidatePath('/movimentacoes');
+  revalidatePath('/revisoes');
+
+  return {
+    ok: true,
+    message: ruleCreated
+      ? 'Revisão concluída e regra salva para futuros lançamentos!'
+      : 'Revisão de classificação concluída!',
+  };
+}
+
+export async function createClassificationRuleAction(input: {
+  pattern: string;
+  categoryId: number;
+  matchType?: 'contains' | 'equals' | 'regex';
+}): Promise<ActionResult> {
+  const { supabase, profileId, error } = await getAuthenticatedProfile();
+  if (error || !profileId) return { ok: false, message: error ?? 'Não autenticado.' };
+
+  const pattern = input.pattern.trim();
+  const categoryId = Number(input.categoryId);
+  const matchType = input.matchType ?? 'contains';
+
+  if (pattern.length < 2 || !Number.isInteger(categoryId) || categoryId <= 0) {
+    return { ok: false, message: 'Informe um padrão (mín. 2 caracteres) e uma categoria.' };
+  }
+
+  const { error: err } = await supabase.from('classification_rules').upsert(
+    {
+      profile_id: profileId,
+      priority: 50,
+      field_name: 'raw_description',
+      match_type: matchType,
+      pattern,
+      category_id: categoryId,
+      active: true,
+    },
+    { onConflict: 'profile_id,field_name,match_type,pattern' }
+  );
+
+  if (err) {
+    return { ok: false, message: `Erro ao criar regra: ${err.message}` };
+  }
+
+  revalidatePath('/revisoes');
+  return { ok: true, message: 'Regra de classificação salva.' };
+}
+
+export async function toggleClassificationRuleAction(input: {
+  ruleId: number;
+  active: boolean;
+}): Promise<ActionResult> {
+  const { supabase, profileId, error } = await getAuthenticatedProfile();
+  if (error || !profileId) return { ok: false, message: error ?? 'Não autenticado.' };
+
+  const { error: err } = await supabase
+    .from('classification_rules')
+    .update({ active: input.active })
+    .eq('id', input.ruleId)
+    .eq('profile_id', profileId);
+
+  if (err) return { ok: false, message: `Erro ao atualizar regra: ${err.message}` };
+
+  revalidatePath('/revisoes');
+  return {
+    ok: true,
+    message: input.active ? 'Regra ativada.' : 'Regra pausada.',
+  };
+}
+
+export async function deleteClassificationRuleAction(input: {
+  ruleId: number;
+}): Promise<ActionResult> {
+  const { supabase, profileId, error } = await getAuthenticatedProfile();
+  if (error || !profileId) return { ok: false, message: error ?? 'Não autenticado.' };
+
+  const { error: err } = await supabase
+    .from('classification_rules')
+    .delete()
+    .eq('id', input.ruleId)
+    .eq('profile_id', profileId);
+
+  if (err) return { ok: false, message: `Erro ao excluir regra: ${err.message}` };
+
+  revalidatePath('/revisoes');
+  return { ok: true, message: 'Regra removida.' };
+}
