@@ -1,8 +1,12 @@
 import React from 'react';
 import { createClient } from '@/lib/supabase/server';
+import {
+  fetchAllLedgerTransactions,
+  fetchAllTransactionAllocations,
+} from '@/lib/finance-queries';
 import OverviewDashboard, {
   type BillSnapshot,
-  type CashflowMonthRow,
+  type MonthlyLedgerSummary,
   type RecentTxRow,
   type RecurringMonthRow,
   type SpendingCategoryMonthRow,
@@ -21,8 +25,9 @@ export default async function HomePage() {
 
   const [
     profileRes,
-    cashflowRes,
-    spendingRes,
+    allTransactions,
+    allAllocations,
+    categoriesRes,
     recurringRes,
     accountsRes,
     recentTxRes,
@@ -38,14 +43,9 @@ export default async function HomePage() {
       .select('display_name')
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from('v_cashflow_monthly')
-      .select('month, inflows, outflows, net_cashflow')
-      .order('month', { ascending: true }),
-    supabase
-      .from('v_spending_monthly')
-      .select('month, category, amount')
-      .order('month', { ascending: false }),
+    fetchAllLedgerTransactions(supabase),
+    fetchAllTransactionAllocations(supabase),
+    supabase.from('categories').select('id, name, parent_id'),
     supabase
       .from('v_recurring_spending_monthly')
       .select('month, amount, charges'),
@@ -90,32 +90,109 @@ export default async function HomePage() {
   const accountNameById = new Map<number, string>();
   (accountsRes.data ?? []).forEach((a) => accountNameById.set(a.id, a.name));
 
-  const pluggyAccountLabel = new Map<string, string>();
-  (pluggyAccountsRes.data ?? []).forEach((pa) => {
-    const mapped = pa.local_account_id
-      ? accountNameById.get(pa.local_account_id)
-      : null;
-    pluggyAccountLabel.set(pa.external_account_id, mapped || pa.label || 'Cartão');
+  const categoryNameById = new Map<number, string>();
+  (categoriesRes.data ?? []).forEach((c) => categoryNameById.set(c.id, c.name));
+
+  const allocsByTxId = new Map<number, { category_id: number; amount: number }[]>();
+  for (const a of allAllocations) {
+    const list = allocsByTxId.get(a.transaction_id) ?? [];
+    list.push({ category_id: a.category_id, amount: a.amount });
+    allocsByTxId.set(a.transaction_id, list);
+  }
+
+  // Consolidate 100% from financial_transactions (single source of truth)
+  const monthlyMap = new Map<string, MonthlyLedgerSummary>();
+  const spendingCatMap = new Map<string, number>(); // key: `${ym}||${catName}`
+
+  for (const tx of allTransactions) {
+    const ym = tx.occurred_on.slice(0, 7);
+    let m = monthlyMap.get(ym);
+    if (!m) {
+      m = {
+        month: ym,
+        spending: 0,
+        income: 0,
+        refunds: 0,
+        netResult: 0,
+        transfers: 0,
+        settlements: 0,
+        investmentApplied: 0,
+        investmentRedeemed: 0,
+        txCount: 0,
+      };
+      monthlyMap.set(ym, m);
+    }
+
+    m.txCount += 1;
+
+    if (tx.is_spending) {
+      m.spending += tx.amount;
+
+      // Attribute to categories (and unallocated difference to "Sem categoria")
+      const allocs = allocsByTxId.get(tx.id);
+      if (allocs && allocs.length > 0) {
+        let allocatedSum = 0;
+        for (const a of allocs) {
+          const catName = categoryNameById.get(a.category_id) ?? 'Sem categoria';
+          const key = `${ym}||${catName}`;
+          spendingCatMap.set(key, (spendingCatMap.get(key) ?? 0) + a.amount);
+          allocatedSum += a.amount;
+        }
+        const remainder = tx.amount - allocatedSum;
+        if (remainder > 0.01) {
+          const key = `${ym}||Sem categoria`;
+          spendingCatMap.set(key, (spendingCatMap.get(key) ?? 0) + remainder);
+        }
+      } else {
+        const key = `${ym}||Sem categoria`;
+        spendingCatMap.set(key, (spendingCatMap.get(key) ?? 0) + tx.amount);
+      }
+    } else if (tx.economic_effect === 'income') {
+      m.income += tx.amount;
+    } else if (tx.economic_effect === 'refund') {
+      m.refunds += tx.amount;
+    } else if (tx.economic_effect === 'settlement') {
+      if (tx.direction === 'debit') {
+        m.settlements += tx.amount;
+      }
+    } else if (tx.is_own_transfer || tx.economic_effect === 'transfer') {
+      if (tx.direction === 'debit') {
+        m.transfers += tx.amount;
+      }
+    } else if (tx.economic_effect === 'investment') {
+      if (tx.direction === 'debit') {
+        m.investmentApplied += tx.amount;
+      } else {
+        m.investmentRedeemed += tx.amount;
+      }
+    }
+  }
+
+  // Finalize net economic result per month: income - (spending - refunds)
+  const monthlySummaries: MonthlyLedgerSummary[] = Array.from(monthlyMap.values())
+    .map((m) => ({
+      ...m,
+      spending: Number(m.spending.toFixed(2)),
+      income: Number(m.income.toFixed(2)),
+      refunds: Number(m.refunds.toFixed(2)),
+      netResult: Number((m.income - m.spending + m.refunds).toFixed(2)),
+      transfers: Number(m.transfers.toFixed(2)),
+      settlements: Number(m.settlements.toFixed(2)),
+      investmentApplied: Number(m.investmentApplied.toFixed(2)),
+      investmentRedeemed: Number(m.investmentRedeemed.toFixed(2)),
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  const spendingByMonthCategory: SpendingCategoryMonthRow[] = Array.from(
+    spendingCatMap.entries()
+  ).map(([key, amount]) => {
+    const [month, category] = key.split('||');
+    return {
+      month,
+      category,
+      amount: Number(amount.toFixed(2)),
+    };
   });
-
-  const cashflowMonths: CashflowMonthRow[] = (cashflowRes.data ?? [])
-    .filter((r) => Boolean(r.month))
-    .map((r) => ({
-      month: String(r.month).slice(0, 7),
-      inflows: Number(r.inflows ?? 0),
-      outflows: Number(r.outflows ?? 0),
-      netCashflow: Number(r.net_cashflow ?? 0),
-    }));
-
-  const spendingByMonthCategory: SpendingCategoryMonthRow[] = (
-    spendingRes.data ?? []
-  )
-    .filter((r) => Boolean(r.month) && Boolean(r.category))
-    .map((r) => ({
-      month: String(r.month).slice(0, 7),
-      category: String(r.category),
-      amount: Number(r.amount ?? 0),
-    }));
 
   // Aggregate recurring spending by month
   const recMap = new Map<string, RecurringMonthRow>();
@@ -126,6 +203,14 @@ export default async function HomePage() {
     prev.amount += Number(r.amount ?? 0);
     prev.charges += Number(r.charges ?? 0);
     recMap.set(m, prev);
+  });
+
+  const pluggyAccountLabel = new Map<string, string>();
+  (pluggyAccountsRes.data ?? []).forEach((pa) => {
+    const mapped = pa.local_account_id
+      ? accountNameById.get(pa.local_account_id)
+      : null;
+    pluggyAccountLabel.set(pa.external_account_id, mapped || pa.label || 'Cartão');
   });
 
   const recentTransactions: RecentTxRow[] = (recentTxRes.data ?? []).map((tx) => {
@@ -166,13 +251,14 @@ export default async function HomePage() {
     <OverviewDashboard
       profileName={profileRes.data?.display_name ?? 'Titular'}
       currentMonthKey={currentMonthKey}
-      cashflowMonths={cashflowMonths}
+      monthlySummaries={monthlySummaries}
       spendingByMonthCategory={spendingByMonthCategory}
       recurringByMonth={Array.from(recMap.values())}
       recentTransactions={recentTransactions}
       latestBills={latestBills}
       connections={connections}
       accountsCount={(accountsRes.data ?? []).length}
+      totalTransactionsCount={allTransactions.length}
       openReviewsCount={openReviewsRes.count ?? 0}
       recurringCandidatesCount={recurringCandidatesRes.count ?? 0}
       activeInstallmentsCount={installmentsRes.count ?? 0}

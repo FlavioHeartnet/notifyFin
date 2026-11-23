@@ -65,48 +65,75 @@ export default async function MovimentacoesPage({ searchParams }: PageProps) {
       ? 'transaction_allocations!inner(category_id, classification_source, categories(name))'
       : 'transaction_allocations(category_id, classification_source, categories(name))';
 
-  let query = supabase
-    .from('financial_transactions')
-    .select(
-      `id, occurred_on, raw_description, counterparty_raw, amount, direction, economic_effect, is_spending, is_own_transfer, classification_status, reconciliation_status, balance_after, account_id, accounts(name), operation_types(name), ${allocSelect}`,
-      { count: 'exact' }
-    )
-    .order('occurred_on', { ascending: false })
-    .order('id', { ascending: false });
+  const buildFilteredQuery = (selectStr: string, withCount: boolean) => {
+    let qry = supabase
+      .from('financial_transactions')
+      .select(selectStr, withCount ? { count: 'exact' } : undefined);
 
-  if (month && /^\d{4}-\d{2}$/.test(month)) {
-    const [y, m] = month.split('-').map(Number);
-    const start = `${month}-01`;
-    const nextDate = new Date(y, m, 1);
-    const end = `${nextDate.getFullYear()}-${String(
-      nextDate.getMonth() + 1
-    ).padStart(2, '0')}-01`;
-    query = query.gte('occurred_on', start).lt('occurred_on', end);
-  }
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      const [y, m] = month.split('-').map(Number);
+      const start = `${month}-01`;
+      const nextDate = new Date(y, m, 1);
+      const end = `${nextDate.getFullYear()}-${String(
+        nextDate.getMonth() + 1
+      ).padStart(2, '0')}-01`;
+      qry = qry.gte('occurred_on', start).lt('occurred_on', end);
+    }
 
-  if (account && Number(account) > 0) {
-    query = query.eq('account_id', Number(account));
-  }
+    if (account && Number(account) > 0) {
+      qry = qry.eq('account_id', Number(account));
+    }
 
-  if (matchingCategoryIds.length > 0) {
-    query = query.in('transaction_allocations.category_id', matchingCategoryIds);
-  }
+    if (matchingCategoryIds.length > 0) {
+      qry = qry.in('transaction_allocations.category_id', matchingCategoryIds);
+    }
 
-  if (effect === 'spending') {
-    query = query.eq('is_spending', true);
-  } else if (effect === 'transfer') {
-    query = query.eq('is_own_transfer', true);
-  } else if (effect) {
-    query = query.eq('economic_effect', effect);
-  }
+    if (effect === 'spending') {
+      qry = qry.eq('is_spending', true);
+    } else if (effect === 'transfer') {
+      qry = qry.eq('is_own_transfer', true);
+    } else if (effect) {
+      qry = qry.eq('economic_effect', effect);
+    }
 
-  if (q) {
-    query = query.ilike('raw_description', `%${q}%`);
-  }
+    if (q) {
+      qry = qry.ilike('raw_description', `%${q}%`);
+    }
+
+    return qry;
+  };
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const { data: rows, count } = await query.range(from, to);
+
+  const { data: rows, count } = await buildFilteredQuery(
+    `id, occurred_on, raw_description, counterparty_raw, amount, direction, economic_effect, is_spending, is_own_transfer, classification_status, reconciliation_status, balance_after, account_id, accounts(name), operation_types(name), ${allocSelect}`,
+    true
+  )
+    .order('occurred_on', { ascending: false })
+    .order('id', { ascending: false })
+    .range(from, to);
+
+  // Aggregate accurate totals across ALL matching rows (paginating past PostgREST 1,000-row cap)
+  const totalsSelect =
+    matchingCategoryIds.length > 0
+      ? 'amount, direction, economic_effect, is_spending, transaction_allocations!inner(category_id)'
+      : 'amount, direction, economic_effect, is_spending';
+
+  const summary = { totalDebits: 0, totalCredits: 0, totalSpending: 0 };
+  const totalMatching = count ?? 0;
+  for (let offset = 0; offset < totalMatching; offset += 1000) {
+    const { data: chunk } = await buildFilteredQuery(totalsSelect, false)
+      .order('id', { ascending: true })
+      .range(offset, offset + 999);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const r of (chunk as any[]) ?? []) {
+      const amt = Number(r.amount ?? 0);
+      if (r.is_spending) summary.totalSpending += amt;
+      if (r.economic_effect === 'income') summary.totalCredits += amt;
+      if (r.direction === 'debit') summary.totalDebits += amt;
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transactions: TxListItem[] = ((rows as any[]) ?? []).map((tx) => {
@@ -135,16 +162,6 @@ export default async function MovimentacoesPage({ searchParams }: PageProps) {
       classificationSource: primary?.classification_source ?? null,
     };
   });
-
-  const summary = transactions.reduce(
-    (acc, t) => {
-      if (t.direction === 'credit') acc.totalCredits += t.amount;
-      else acc.totalDebits += t.amount;
-      if (t.is_spending) acc.totalSpending += t.amount;
-      return acc;
-    },
-    { totalDebits: 0, totalCredits: 0, totalSpending: 0 }
-  );
 
   return (
     <TransactionsClient

@@ -213,7 +213,7 @@ export default function TransactionsClient({
             }}
           >
             <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Gastos (página)
+              Gastos (filtro)
             </Typography>
             <Typography
               variant="h6"
@@ -237,7 +237,7 @@ export default function TransactionsClient({
             }}
           >
             <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Entradas (pág.)
+              Entradas (filtro)
             </Typography>
             <Typography
               variant="h6"

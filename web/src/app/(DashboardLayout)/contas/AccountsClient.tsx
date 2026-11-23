@@ -234,7 +234,7 @@ export default function AccountsClient({
                   <Grid container spacing={1}>
                     <Grid size={{ xs: 6 }}>
                       <Typography variant="caption" color="textSecondary">
-                        Total saídas
+                        Gastos acumulados
                       </Typography>
                       <Typography variant="subtitle2" fontWeight={700}>
                         {formatBRL(acc.totalDebits)}
@@ -242,7 +242,7 @@ export default function AccountsClient({
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       <Typography variant="caption" color="textSecondary">
-                        Total entradas
+                        Entradas (renda)
                       </Typography>
                       <Typography variant="subtitle2" fontWeight={700} color="success.main">
                         {formatBRL(acc.totalCredits)}

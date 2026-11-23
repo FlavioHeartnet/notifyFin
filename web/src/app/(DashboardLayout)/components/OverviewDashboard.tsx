@@ -43,11 +43,17 @@ import {
 
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
-export interface CashflowMonthRow {
+export interface MonthlyLedgerSummary {
   month: string; // YYYY-MM
-  inflows: number;
-  outflows: number;
-  netCashflow: number;
+  spending: number; // is_spending = true
+  income: number; // economic_effect = 'income'
+  refunds: number; // economic_effect = 'refund'
+  netResult: number; // income - spending + refunds
+  transfers: number; // own transfer outflows (excluded from spending/income)
+  settlements: number; // card bill payment outflows (excluded from spending)
+  investmentApplied: number; // investment debits
+  investmentRedeemed: number; // investment credits
+  txCount: number;
 }
 
 export interface SpendingCategoryMonthRow {
@@ -93,13 +99,14 @@ export interface ConnectionSnapshot {
 export interface OverviewDashboardProps {
   profileName: string;
   currentMonthKey: string;
-  cashflowMonths: CashflowMonthRow[];
+  monthlySummaries: MonthlyLedgerSummary[];
   spendingByMonthCategory: SpendingCategoryMonthRow[];
   recurringByMonth: RecurringMonthRow[];
   recentTransactions: RecentTxRow[];
   latestBills: BillSnapshot[];
   connections: ConnectionSnapshot[];
   accountsCount: number;
+  totalTransactionsCount: number;
   openReviewsCount: number;
   recurringCandidatesCount: number;
   activeInstallmentsCount: number;
@@ -108,13 +115,14 @@ export interface OverviewDashboardProps {
 export default function OverviewDashboard({
   profileName,
   currentMonthKey,
-  cashflowMonths,
+  monthlySummaries,
   spendingByMonthCategory,
   recurringByMonth,
   recentTransactions,
   latestBills,
   connections,
   accountsCount,
+  totalTransactionsCount,
   openReviewsCount,
   recurringCandidatesCount,
   activeInstallmentsCount,
@@ -122,14 +130,15 @@ export default function OverviewDashboard({
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
-  // Available months sorted desc (only up to current month + up to 2 future months)
-  const availableMonths = useMemo(() => {
-    const set = new Set<string>();
-    cashflowMonths.forEach((r) => set.add(r.month));
-    spendingByMonthCategory.forEach((r) => set.add(r.month));
-    return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [cashflowMonths, spendingByMonthCategory]);
+  const availableMonths = useMemo(
+    () =>
+      monthlySummaries
+        .map((m) => m.month)
+        .sort((a, b) => b.localeCompare(a)),
+    [monthlySummaries]
+  );
 
+  // Default to the latest month <= currentMonthKey that has substantial data (or currentMonthKey)
   const defaultMonth = useMemo(() => {
     if (availableMonths.includes(currentMonthKey)) return currentMonthKey;
     const pastOrPresent = availableMonths.find((m) => m <= currentMonthKey);
@@ -138,15 +147,21 @@ export default function OverviewDashboard({
 
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
 
-  const selectedCashflow = useMemo(
+  const selectedSummary = useMemo<MonthlyLedgerSummary>(
     () =>
-      cashflowMonths.find((c) => c.month === selectedMonth) ?? {
+      monthlySummaries.find((c) => c.month === selectedMonth) ?? {
         month: selectedMonth,
-        inflows: 0,
-        outflows: 0,
-        netCashflow: 0,
+        spending: 0,
+        income: 0,
+        refunds: 0,
+        netResult: 0,
+        transfers: 0,
+        settlements: 0,
+        investmentApplied: 0,
+        investmentRedeemed: 0,
+        txCount: 0,
       },
-    [cashflowMonths, selectedMonth]
+    [monthlySummaries, selectedMonth]
   );
 
   const selectedCategories = useMemo(() => {
@@ -154,11 +169,6 @@ export default function OverviewDashboard({
       .filter((r) => r.month === selectedMonth && r.amount > 0)
       .sort((a, b) => b.amount - a.amount);
   }, [spendingByMonthCategory, selectedMonth]);
-
-  const totalSpendingSelected = useMemo(
-    () => selectedCategories.reduce((acc, r) => acc + r.amount, 0),
-    [selectedCategories]
-  );
 
   // Previous month comparison for spending
   const prevMonthKey = useMemo(() => {
@@ -168,16 +178,14 @@ export default function OverviewDashboard({
       : null;
   }, [availableMonths, selectedMonth]);
 
-  const totalSpendingPrev = useMemo(() => {
+  const prevSpending = useMemo(() => {
     if (!prevMonthKey) return 0;
-    return spendingByMonthCategory
-      .filter((r) => r.month === prevMonthKey)
-      .reduce((acc, r) => acc + r.amount, 0);
-  }, [spendingByMonthCategory, prevMonthKey]);
+    return monthlySummaries.find((m) => m.month === prevMonthKey)?.spending ?? 0;
+  }, [monthlySummaries, prevMonthKey]);
 
   const spendingDeltaPct =
-    totalSpendingPrev > 0
-      ? ((totalSpendingSelected - totalSpendingPrev) / totalSpendingPrev) * 100
+    prevSpending > 0
+      ? ((selectedSummary.spending - prevSpending) / prevSpending) * 100
       : null;
 
   const selectedRecurring = useMemo(
@@ -190,23 +198,15 @@ export default function OverviewDashboard({
     [recurringByMonth, selectedMonth]
   );
 
-  // Last 10 historical months up to currentMonthKey for the main cashflow chart
-  const chartMonths = useMemo(() => {
-    const past = cashflowMonths
-      .filter((c) => c.month <= currentMonthKey)
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-10);
-
-    const spendMap = new Map<string, number>();
-    spendingByMonthCategory.forEach((s) => {
-      spendMap.set(s.month, (spendMap.get(s.month) ?? 0) + s.amount);
-    });
-
-    return past.map((c) => ({
-      ...c,
-      spending: spendMap.get(c.month) ?? 0,
-    }));
-  }, [cashflowMonths, spendingByMonthCategory, currentMonthKey]);
+  // Last 10 historical months up to currentMonthKey for the main chart
+  const chartMonths = useMemo(
+    () =>
+      monthlySummaries
+        .filter((c) => c.month <= currentMonthKey)
+        .sort((a, b) => a.month.localeCompare(b.month))
+        .slice(-10),
+    [monthlySummaries, currentMonthKey]
+  );
 
   const cashflowChartOptions: ApexOptions = useMemo(
     () => ({
@@ -219,7 +219,7 @@ export default function OverviewDashboard({
       colors: [
         theme.palette.success.main,
         theme.palette.primary.main,
-        theme.palette.error.main,
+        theme.palette.secondary.main,
       ],
       plotOptions: {
         bar: {
@@ -263,15 +263,15 @@ export default function OverviewDashboard({
     () => [
       {
         name: 'Entradas observadas',
-        data: chartMonths.map((m) => Number(m.inflows.toFixed(2))),
+        data: chartMonths.map((m) => m.income),
       },
       {
-        name: 'Gastos categorizados',
-        data: chartMonths.map((m) => Number(m.spending.toFixed(2))),
+        name: 'Gastos reais',
+        data: chartMonths.map((m) => m.spending),
       },
       {
-        name: 'Saídas totais',
-        data: chartMonths.map((m) => Number(m.outflows.toFixed(2))),
+        name: 'Estornos',
+        data: chartMonths.map((m) => m.refunds),
       },
     ],
     [chartMonths]
@@ -317,7 +317,7 @@ export default function OverviewDashboard({
               total: {
                 show: true,
                 label: 'Gastos',
-                formatter: () => formatCompactBRL(totalSpendingSelected),
+                formatter: () => formatCompactBRL(selectedSummary.spending),
               },
             },
           },
@@ -330,17 +330,19 @@ export default function OverviewDashboard({
         },
       },
     }),
-    [donutData, totalSpendingSelected, theme, isDark]
+    [donutData, selectedSummary.spending, theme, isDark]
   );
 
   const kpis = [
     {
-      label: 'Gastos do mês',
-      value: formatBRL(totalSpendingSelected),
+      label: 'Gastos reais do mês',
+      value: formatBRL(selectedSummary.spending),
       sub:
-        spendingDeltaPct !== null
-          ? `${spendingDeltaPct >= 0 ? '+' : ''}${spendingDeltaPct.toFixed(1)}% vs mês ant.`
-          : 'Sem base anterior',
+        selectedSummary.refunds > 0
+          ? `Líquido c/ estornos: ${formatBRL(selectedSummary.spending - selectedSummary.refunds)}`
+          : spendingDeltaPct !== null
+            ? `${spendingDeltaPct >= 0 ? '+' : ''}${spendingDeltaPct.toFixed(1)}% vs mês ant.`
+            : 'Sem base anterior',
       icon: <IconTrendingDown size={22} />,
       bg: isDark ? 'rgba(93, 135, 255, 0.16)' : '#ECF2FF',
       color: theme.palette.primary.main,
@@ -348,20 +350,20 @@ export default function OverviewDashboard({
     },
     {
       label: 'Entradas observadas',
-      value: formatBRL(selectedCashflow.inflows),
-      sub: `Fluxo de ${formatMonthLabel(selectedMonth)}`,
+      value: formatBRL(selectedSummary.income),
+      sub: 'Apenas renda/receitas (sem transf.)',
       icon: <IconTrendingUp size={22} />,
       bg: isDark ? 'rgba(19, 222, 185, 0.16)' : '#E6FFFA',
       color: theme.palette.success.main,
       positive: true,
     },
     {
-      label: 'Fluxo líquido',
-      value: formatBRL(selectedCashflow.netCashflow),
-      sub: `Saídas: ${formatCompactBRL(selectedCashflow.outflows)}`,
+      label: 'Resultado do mês',
+      value: formatBRL(selectedSummary.netResult),
+      sub: 'Entradas − Gastos + Estornos',
       icon: <IconWallet size={22} />,
       bg:
-        selectedCashflow.netCashflow >= 0
+        selectedSummary.netResult >= 0
           ? isDark
             ? 'rgba(73, 190, 255, 0.16)'
             : '#E8F7FF'
@@ -369,10 +371,10 @@ export default function OverviewDashboard({
             ? 'rgba(250, 137, 107, 0.16)'
             : '#FDEDE8',
       color:
-        selectedCashflow.netCashflow >= 0
+        selectedSummary.netResult >= 0
           ? theme.palette.secondary.main
           : theme.palette.error.main,
-      positive: selectedCashflow.netCashflow >= 0,
+      positive: selectedSummary.netResult >= 0,
     },
     {
       label: 'Recorrências',
@@ -401,7 +403,8 @@ export default function OverviewDashboard({
             Olá, {profileName.split(' ')[0]}
           </Typography>
           <Typography variant="body2" color="textSecondary">
-            Resumo financeiro de <strong>{formatMonthLong(selectedMonth)}</strong> · {accountsCount} contas monitoradas
+            Consolidado de <strong>{formatMonthLong(selectedMonth)}</strong> ·{' '}
+            {selectedSummary.txCount} mov. no mês ({totalTransactionsCount.toLocaleString('pt-BR')} no ledger em {accountsCount} contas)
           </Typography>
         </Box>
 
@@ -448,7 +451,7 @@ export default function OverviewDashboard({
         })}
       </Box>
 
-      {/* Pending Action Banner (if open reviews or recurring candidates exist) */}
+      {/* Pending Action Banner */}
       {(openReviewsCount > 0 || recurringCandidatesCount > 0) && (
         <Alert
           severity="warning"
@@ -555,12 +558,83 @@ export default function OverviewDashboard({
         ))}
       </Grid>
 
-      {/* Main Charts Row: Cashflow Evolution (8 cols) + Category Donut (4 cols) */}
+      {/* Transparent breakdown of non-spending / neutral movements excluded from KPIs */}
+      {(selectedSummary.transfers > 0 ||
+        selectedSummary.settlements > 0 ||
+        selectedSummary.investmentApplied > 0 ||
+        selectedSummary.investmentRedeemed > 0 ||
+        selectedSummary.refunds > 0) && (
+        <Paper
+          elevation={0}
+          sx={{
+            px: { xs: 1.75, sm: 2.5 },
+            py: 1.5,
+            borderRadius: 2,
+            border: `1px solid ${theme.palette.divider}`,
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            justifyContent="space-between"
+            flexWrap="wrap"
+            useFlexGap
+          >
+            <Typography variant="caption" color="textSecondary" fontWeight={600}>
+              Excluídos dos gastos/entradas em {formatMonthLabel(selectedMonth)} (sem contagem dupla):
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {selectedSummary.transfers > 0 && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`Transf. internas: ${formatBRL(selectedSummary.transfers)}`}
+                />
+              )}
+              {selectedSummary.settlements > 0 && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`Pag. faturas: ${formatBRL(selectedSummary.settlements)}`}
+                />
+              )}
+              {selectedSummary.investmentApplied > 0 && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color="info"
+                  label={`Aplic. invest.: ${formatBRL(selectedSummary.investmentApplied)}`}
+                />
+              )}
+              {selectedSummary.investmentRedeemed > 0 && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color="info"
+                  label={`Resgates invest.: ${formatBRL(selectedSummary.investmentRedeemed)}`}
+                />
+              )}
+              {selectedSummary.refunds > 0 && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  label={`Estornos: ${formatBRL(selectedSummary.refunds)}`}
+                />
+              )}
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Main Charts Row */}
       <Grid container spacing={{ xs: 2, sm: 2.5 }}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <DashboardCard
-            title="Evolução Mensal"
-            subtitle="Entradas observadas, gastos categorizados e saídas totais (últimos 10 meses)"
+            title="Evolução Mensal Real"
+            subtitle="Entradas (renda), gastos reais (is_spending) e estornos — sem transferências internas nem pagamento de faturas"
           >
             {chartMonths.length > 0 ? (
               <Box sx={{ width: '100%', minHeight: 300 }}>
@@ -587,7 +661,7 @@ export default function OverviewDashboard({
             action={
               <Button
                 component={Link}
-                href={`/movimentacoes?month=${selectedMonth}`}
+                href={`/movimentacoes?month=${selectedMonth}&effect=spending`}
                 size="small"
               >
                 Detalhes
@@ -609,8 +683,8 @@ export default function OverviewDashboard({
                 <Stack spacing={1.25}>
                   {selectedCategories.slice(0, 6).map((cat, idx) => {
                     const pct =
-                      totalSpendingSelected > 0
-                        ? (cat.amount / totalSpendingSelected) * 100
+                      selectedSummary.spending > 0
+                        ? (cat.amount / selectedSummary.spending) * 100
                         : 0;
                     return (
                       <Box key={cat.category}>
@@ -665,19 +739,19 @@ export default function OverviewDashboard({
               </Stack>
             ) : (
               <Typography color="textSecondary" py={6} textAlign="center">
-                Nenhum gasto categorizado em {formatMonthLabel(selectedMonth)}.
+                Nenhum gasto registrado em {formatMonthLabel(selectedMonth)}.
               </Typography>
             )}
           </DashboardCard>
         </Grid>
       </Grid>
 
-      {/* Bottom Row: Recent Transactions (7 cols) + Bills & Pluggy Health (5 cols) */}
+      {/* Bottom Row: Recent Transactions + Bills & Pluggy Health */}
       <Grid container spacing={{ xs: 2, sm: 2.5 }}>
         <Grid size={{ xs: 12, lg: 7 }}>
           <DashboardCard
             title="Últimas Movimentações"
-            subtitle="Registros recentes consolidados nas contas monitoradas"
+            subtitle="Registros recentes consolidados em financial_transactions"
             action={
               <Button component={Link} href="/movimentacoes" size="small">
                 Ver todas
@@ -789,7 +863,6 @@ export default function OverviewDashboard({
 
         <Grid size={{ xs: 12, lg: 5 }}>
           <Stack spacing={2.5} height="100%">
-            {/* Latest Credit Card Bills */}
             <DashboardCard
               title="Faturas Recentes"
               subtitle={`${activeInstallmentsCount} compromisso(s) parcelado(s) ativos`}
@@ -837,7 +910,6 @@ export default function OverviewDashboard({
               </Stack>
             </DashboardCard>
 
-            {/* Open Finance / Pluggy Sync Health */}
             <DashboardCard
               title="Sincronização Open Finance"
               subtitle="Conexões Pluggy com rotina diária"

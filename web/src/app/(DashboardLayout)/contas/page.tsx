@@ -1,5 +1,6 @@
 import React from 'react';
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllLedgerTransactions } from '@/lib/finance-queries';
 import AccountsClient, {
   type AccountCardItem,
   type BillItem,
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function ContasPage() {
   const supabase = await createClient();
 
-  const [accountsRes, txStatsRes, billsRes, pluggyAccRes, installmentsRes] =
+  const [accountsRes, allTransactions, billsRes, pluggyAccRes, installmentsRes] =
     await Promise.all([
       supabase
         .from('accounts')
@@ -19,10 +20,7 @@ export default async function ContasPage() {
           'id, name, account_type, external_reference_masked, currency, active, institutions(name)'
         )
         .order('name', { ascending: true }),
-      supabase
-        .from('financial_transactions')
-        .select('account_id, amount, direction, occurred_on')
-        .limit(5000),
+      fetchAllLedgerTransactions(supabase),
       supabase
         .from('pluggy_bills')
         .select('id, external_account_id, due_date, closing_date, total_amount')
@@ -40,21 +38,21 @@ export default async function ContasPage() {
 
   const statsByAcc = new Map<
     number,
-    { count: number; debits: number; credits: number; latest: string | null }
+    { count: number; spending: number; income: number; latest: string | null }
   >();
-  (txStatsRes.data ?? []).forEach((tx) => {
+  for (const tx of allTransactions) {
     const s = statsByAcc.get(tx.account_id) ?? {
       count: 0,
-      debits: 0,
-      credits: 0,
+      spending: 0,
+      income: 0,
       latest: null,
     };
     s.count += 1;
-    if (tx.direction === 'credit') s.credits += Number(tx.amount);
-    else s.debits += Number(tx.amount);
+    if (tx.is_spending) s.spending += tx.amount;
+    if (tx.economic_effect === 'income') s.income += tx.amount;
     if (!s.latest || tx.occurred_on > s.latest) s.latest = tx.occurred_on;
     statsByAcc.set(tx.account_id, s);
-  });
+  }
 
   const accNameById = new Map<number, string>();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,8 +68,8 @@ export default async function ContasPage() {
       active: a.active,
       institutionName: a.institutions?.name ?? 'Instituição',
       txCount: st?.count ?? 0,
-      totalDebits: st?.debits ?? 0,
-      totalCredits: st?.credits ?? 0,
+      totalDebits: Number((st?.spending ?? 0).toFixed(2)),
+      totalCredits: Number((st?.income ?? 0).toFixed(2)),
       latestDate: st?.latest ?? null,
     };
   });
