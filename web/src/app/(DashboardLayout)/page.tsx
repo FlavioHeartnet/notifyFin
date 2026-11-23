@@ -100,12 +100,25 @@ export default async function HomePage() {
     allocsByTxId.set(a.transaction_id, list);
   }
 
+  // Income competence rule: entries from day 25 onward finance the following month
+  // (e.g., salary paid on Oct 26–31 belongs to Nov's observed income window: 25/Oct – 24/Nov).
+  const INCOME_CUTOFF_DAY = 25;
+  const getIncomeCompetenceMonth = (isoDate: string): string => {
+    const year = Number(isoDate.slice(0, 4));
+    const month = Number(isoDate.slice(5, 7)); // 1..12
+    const day = Number(isoDate.slice(8, 10));
+    if (day >= INCOME_CUTOFF_DAY) {
+      const next = new Date(year, month, 1); // JS month is 0-indexed, so `month` is next month
+      return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+    }
+    return isoDate.slice(0, 7);
+  };
+
   // Consolidate 100% from financial_transactions (single source of truth)
   const monthlyMap = new Map<string, MonthlyLedgerSummary>();
   const spendingCatMap = new Map<string, number>(); // key: `${ym}||${catName}`
 
-  for (const tx of allTransactions) {
-    const ym = tx.occurred_on.slice(0, 7);
+  const ensureMonth = (ym: string): MonthlyLedgerSummary => {
     let m = monthlyMap.get(ym);
     if (!m) {
       m = {
@@ -122,7 +135,12 @@ export default async function HomePage() {
       };
       monthlyMap.set(ym, m);
     }
+    return m;
+  };
 
+  for (const tx of allTransactions) {
+    const ym = tx.occurred_on.slice(0, 7);
+    const m = ensureMonth(ym);
     m.txCount += 1;
 
     if (tx.is_spending) {
@@ -148,7 +166,9 @@ export default async function HomePage() {
         spendingCatMap.set(key, (spendingCatMap.get(key) ?? 0) + tx.amount);
       }
     } else if (tx.economic_effect === 'income') {
-      m.income += tx.amount;
+      const incomeMonth = getIncomeCompetenceMonth(tx.occurred_on);
+      const targetMonth = ensureMonth(incomeMonth);
+      targetMonth.income += tx.amount;
     } else if (tx.economic_effect === 'refund') {
       m.refunds += tx.amount;
     } else if (tx.economic_effect === 'settlement') {

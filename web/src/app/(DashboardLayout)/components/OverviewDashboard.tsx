@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
@@ -130,22 +130,34 @@ export default function OverviewDashboard({
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
+  // Chronological order: oldest on the left → current/future on the right
   const availableMonths = useMemo(
     () =>
       monthlySummaries
         .map((m) => m.month)
-        .sort((a, b) => b.localeCompare(a)),
+        .sort((a, b) => a.localeCompare(b)),
     [monthlySummaries]
   );
 
-  // Default to the latest month <= currentMonthKey that has substantial data (or currentMonthKey)
+  // Default to currentMonthKey (or latest month <= currentMonthKey)
   const defaultMonth = useMemo(() => {
     if (availableMonths.includes(currentMonthKey)) return currentMonthKey;
-    const pastOrPresent = availableMonths.find((m) => m <= currentMonthKey);
-    return pastOrPresent ?? availableMonths[0] ?? currentMonthKey;
+    const pastOrPresent = [...availableMonths]
+      .reverse()
+      .find((m) => m <= currentMonthKey);
+    return pastOrPresent ?? availableMonths[availableMonths.length - 1] ?? currentMonthKey;
   }, [availableMonths, currentMonthKey]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
+  const activeMonthPillRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    activeMonthPillRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+  }, [selectedMonth]);
 
   const selectedSummary = useMemo<MonthlyLedgerSummary>(
     () =>
@@ -170,13 +182,20 @@ export default function OverviewDashboard({
       .sort((a, b) => b.amount - a.amount);
   }, [spendingByMonthCategory, selectedMonth]);
 
-  // Previous month comparison for spending
+  // Previous month comparison for spending (ascending array -> idx - 1)
   const prevMonthKey = useMemo(() => {
     const idx = availableMonths.indexOf(selectedMonth);
-    return idx >= 0 && idx + 1 < availableMonths.length
-      ? availableMonths[idx + 1]
-      : null;
+    return idx > 0 ? availableMonths[idx - 1] : null;
   }, [availableMonths, selectedMonth]);
+
+  const incomeWindowLabel = useMemo(() => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    if (!y || !m) return 'Janela 25/mês ant. – 24/mês';
+    const prevDate = new Date(y, m - 2, 25);
+    const pm = String(prevDate.getMonth() + 1).padStart(2, '0');
+    const cm = String(m).padStart(2, '0');
+    return `Janela 25/${pm} a 24/${cm} (inclui salário)`;
+  }, [selectedMonth]);
 
   const prevSpending = useMemo(() => {
     if (!prevMonthKey) return 0;
@@ -351,7 +370,7 @@ export default function OverviewDashboard({
     {
       label: 'Entradas observadas',
       value: formatBRL(selectedSummary.income),
-      sub: 'Apenas renda/receitas (sem transf.)',
+      sub: incomeWindowLabel,
       icon: <IconTrendingUp size={22} />,
       bg: isDark ? 'rgba(19, 222, 185, 0.16)' : '#E6FFFA',
       color: theme.palette.success.main,
@@ -387,7 +406,8 @@ export default function OverviewDashboard({
     },
   ];
 
-  const visibleMonthPills = availableMonths.slice(0, 14);
+  // Keep all months chronologically (oldest left -> newest/future right)
+  const visibleMonthPills = availableMonths;
 
   return (
     <Stack spacing={2.5}>
@@ -429,7 +449,7 @@ export default function OverviewDashboard({
         </Stack>
       </Stack>
 
-      {/* Scrollable Month Selector Pills (Mobile-First) */}
+      {/* Scrollable Month Selector Pills (Chronological: oldest left -> newest right) */}
       <Box className="scroll-rail" sx={{ display: 'flex', gap: 1, pb: 0.5 }}>
         {visibleMonthPills.map((m) => {
           const active = m === selectedMonth;
@@ -437,6 +457,7 @@ export default function OverviewDashboard({
           return (
             <Chip
               key={m}
+              ref={active ? activeMonthPillRef : undefined}
               label={`${formatMonthLabel(m)}${isFuture ? ' • Fut.' : ''}`}
               clickable
               color={active ? 'primary' : 'default'}
