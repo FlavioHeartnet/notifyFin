@@ -5,9 +5,15 @@ import { DatabaseModule } from './platform/database/database.module';
 import { HealthController } from './platform/health/health.controller';
 import { HttpSurfaceGuard } from './platform/http/http-surface.guard';
 import { QueueModule } from './platform/queue/queue.module';
+import { WorkerReadinessModule } from './platform/worker/worker-readiness.module';
 
 @Module({
-  imports: [RuntimeConfigModule, DatabaseModule, QueueModule.forProcess('api')],
+  imports: [
+    RuntimeConfigModule,
+    DatabaseModule,
+    QueueModule.forProcess('api'),
+    WorkerReadinessModule,
+  ],
   controllers: [HealthController],
   providers: [
     {

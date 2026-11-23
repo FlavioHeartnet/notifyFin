@@ -35,14 +35,18 @@ npm run prisma:migrate:deploy
 npm run queue:migrate:deploy
 ```
 
-Os runtimes usam pg-boss com migração automática desativada e falham ou ficam não prontos quando o schema da fila não foi provisionado. Os entrypoints compilados são `node dist/main` e `node dist/worker`. Neste tracer bullet, o worker falha fechado na inicialização e é observado pelo estado do processo; uma prova independente de readiness após a inicialização permanece para o milestone operacional da #15.
+Os runtimes usam pg-boss com migração automática desativada e falham ou ficam não prontos quando o schema da fila não foi provisionado. Os entrypoints compilados são `node dist/main` e `node dist/worker`.
+
+O worker mantém no PostgreSQL um lease renovado a cada cinco segundos. A readiness considera o worker indisponível depois de quinze segundos sem renovação ou após seu encerramento gracioso. Filas duráveis declaram heartbeat, retentativas e dead-letter; a configuração é reconciliada a cada registro do handler. Jobs terminais e dead-letter são retidos por trinta dias, sem retenção indefinida do payload.
+
+Publicações duráveis recebem uma chave de idempotência técnica e são inseridas pelo pg-boss na mesma transação Prisma da mudança de aplicação. Reuso da chave com payload diferente é rejeitado. O handler executa efeitos PostgreSQL e persiste seu resultado técnico na mesma transação; uma reentrega após o commit não repete esses efeitos. Essa garantia não cobre efeitos externos, que precisarão reutilizar uma chave aceita pelo fornecedor.
 
 ## Health checks
 
 Na superfície administrativa:
 
 - `GET /health/live`: confirma que o processo HTTP está funcional e não depende do banco.
-- `GET /health/ready`: confirma PostgreSQL e pg-boss independentemente; responde `503` de forma sanitizada, indicando cada dependência como `up` ou `down`.
+- `GET /health/ready`: confirma PostgreSQL, pg-boss e ao menos um lease recente de worker; responde `503` de forma sanitizada, indicando `database`, `queue` e `worker` como `up` ou `down`.
 
 ## Exceção temporária de dependência
 

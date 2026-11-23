@@ -1,4 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { DatabaseModule } from '../database/database.module';
+import { DURABLE_JOB_QUEUE } from './durable-job';
 import { PgBossQueue } from './pgboss-queue';
 import { QUEUE_READINESS } from './queue-readiness';
 import {
@@ -17,6 +19,7 @@ export class QueueModule {
 
     return {
       module: QueueModule,
+      imports: [DatabaseModule],
       providers: [
         {
           provide: QUEUE_RUNTIME_OPTIONS,
@@ -24,11 +27,15 @@ export class QueueModule {
         },
         PgBossQueue,
         {
+          provide: DURABLE_JOB_QUEUE,
+          useExisting: PgBossQueue,
+        },
+        {
           provide: QUEUE_READINESS,
           useExisting: PgBossQueue,
         },
       ],
-      exports: [QUEUE_READINESS],
+      exports: [DURABLE_JOB_QUEUE, QUEUE_READINESS, DatabaseModule],
     };
   }
 }

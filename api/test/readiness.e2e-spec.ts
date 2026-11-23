@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -7,11 +7,14 @@ import {
   RUNTIME_CONFIG,
   RuntimeConfig,
 } from '../src/platform/config/runtime-config';
+import { bootstrapWorker } from '../src/worker';
 
 describe('API readiness (e2e)', () => {
   let app: INestApplication<App>;
+  let worker: INestApplicationContext;
 
   beforeAll(async () => {
+    worker = await bootstrapWorker();
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -22,16 +25,17 @@ describe('API readiness (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
+    await worker.close();
   });
 
-  it('reports ready when PostgreSQL and pg-boss are reachable', async () => {
+  it('reports ready when PostgreSQL, pg-boss and a worker are available', async () => {
     await request(app.getHttpServer())
       .get('/health/ready')
       .set('Host', 'admin.notifyfin.test')
       .expect(200)
       .expect({
         status: 'ok',
-        checks: { database: 'up', queue: 'up' },
+        checks: { database: 'up', queue: 'up', worker: 'up' },
       });
   });
 
@@ -52,14 +56,14 @@ describe('API readiness (e2e)', () => {
       .expect(503)
       .expect({
         status: 'error',
-        checks: { database: 'down', queue: 'down' },
+        checks: { database: 'down', queue: 'down', worker: 'down' },
       });
 
     expect(response.text).not.toContain('private-password');
     await unavailableApp.close();
   });
 
-  it('reports database up and queue down when only pg-boss is unmigrated', async () => {
+  it('reports database up and queue and worker down when pg-boss is unmigrated', async () => {
     const queueUnmigratedApp = await createAppWithDatabase(
       'postgresql://notifyfin:notifyfin_test@127.0.0.1:55432/notifyfin_queue_unmigrated',
     );
@@ -70,7 +74,7 @@ describe('API readiness (e2e)', () => {
       .expect(503)
       .expect({
         status: 'error',
-        checks: { database: 'up', queue: 'down' },
+        checks: { database: 'up', queue: 'down', worker: 'down' },
       });
 
     await queueUnmigratedApp.close();
@@ -87,7 +91,7 @@ describe('API readiness (e2e)', () => {
       .expect(503)
       .expect({
         status: 'error',
-        checks: { database: 'down', queue: 'down' },
+        checks: { database: 'down', queue: 'down', worker: 'down' },
       });
 
     await unmigratedApp.close();

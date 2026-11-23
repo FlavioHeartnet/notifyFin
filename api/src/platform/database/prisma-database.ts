@@ -4,11 +4,15 @@ import { PrismaClient } from '../../generated/prisma/client';
 import { RUNTIME_CONFIG } from '../config/runtime-config';
 import type { RuntimeConfig } from '../config/runtime-config';
 import type { DatabaseReadiness } from './database-readiness';
+import type {
+  DatabaseTransaction,
+  DatabaseTransactions,
+} from './database-transactions';
 
 @Injectable()
 export class PrismaDatabase
   extends PrismaClient
-  implements DatabaseReadiness, OnModuleDestroy
+  implements DatabaseReadiness, DatabaseTransactions, OnModuleDestroy
 {
   constructor(@Inject(RUNTIME_CONFIG) config: RuntimeConfig) {
     super({
@@ -17,6 +21,22 @@ export class PrismaDatabase
         connectionTimeoutMillis: 3_000,
       }),
     });
+  }
+
+  async run<T>(
+    operation: (transaction: DatabaseTransaction) => Promise<T>,
+  ): Promise<T> {
+    return this.$transaction((prismaTransaction) =>
+      operation({
+        execute: async (statement, values = []) =>
+          prismaTransaction.$executeRawUnsafe(statement, ...values),
+        query: async <Row>(
+          statement: string,
+          values: readonly unknown[] = [],
+        ) => prismaTransaction.$queryRawUnsafe<Row[]>(statement, ...values),
+        native: prismaTransaction,
+      }),
+    );
   }
 
   async check(): Promise<void> {

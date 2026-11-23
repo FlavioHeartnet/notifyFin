@@ -7,3 +7,29 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model WorkerLease {
+  instanceId  String    @id @map("instance_id") @db.Uuid
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  heartbeatAt DateTime  @default(now()) @map("heartbeat_at") @db.Timestamptz(6)
+  stoppedAt   DateTime? @map("stopped_at") @db.Timestamptz(6)
+
+  @@index([heartbeatAt], map: "worker_lease_heartbeat_idx")
+  @@map("worker_lease")
+}
+
+model JobDispatch {
+  id             String    @id @db.Uuid
+  queueName      String    @map("queue_name")
+  idempotencyKey String    @map("idempotency_key")
+  payloadHash    String    @map("payload_hash") @db.Char(64)
+  jobId          String    @unique(map: "job_dispatch_job_id_key") @map("job_id") @db.Uuid
+  attemptCount   Int       @default(0) @map("attempt_count")
+  resultCode     String?   @map("result_code")
+  failureCode    String?   @map("failure_code")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  @@unique([queueName, idempotencyKey], map: "job_dispatch_queue_idempotency_key")
+  @@map("job_dispatch")
+}
