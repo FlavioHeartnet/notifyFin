@@ -1,0 +1,40 @@
+{
+  "name": "notifyfin-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.5",
+    "@mui/material-nextjs": "^7.3.5",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.49.4",
+    "@tabler/icons-react": "^3.35.0",
+    "apexcharts": "5.3.6",
+    "date-fns": "^4.1.0",
+    "lodash": "^4.17.21",
+    "next": "^16.4.6",
+    "nextjs-toploader": "^3.9.17",
+    "react": "19.2.0",
+    "react-apexcharts": "^1.8.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.21",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "eslint": "^9.25.0",
+    "eslint-config-next": "^16.4.6",
+    "typescript": "5.9.3"
+  }
+}
