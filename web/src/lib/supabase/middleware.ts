@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from '@/types/database.types';
 
-const PUBLIC_PATHS = ['/login', '/auth'];
+const PUBLIC_PATHS = ['/login', '/esqueci-senha', '/redefinir-senha', '/auth'];
+const GUEST_ONLY_PATHS = ['/login', '/esqueci-senha'];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -32,13 +33,13 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // IMPORTANT: use getUser() to verify session securely with Supabase Auth
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isGuestOnlyPath = GUEST_ONLY_PATHS.some((p) => pathname === p);
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
@@ -49,7 +50,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === '/login') {
+  if (user && isGuestOnlyPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
