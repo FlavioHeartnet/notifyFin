@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
   Divider,
   FormControl,
   FormControlLabel,
@@ -25,6 +24,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   IconCheck,
   IconPlus,
@@ -34,6 +34,9 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import PageBanner from '@/app/components/shared/PageBanner';
+import StatTile from '@/app/components/shared/StatTile';
+import StatusChip from '@/app/components/shared/StatusChip';
 import {
   formatBRL,
   formatDateBR,
@@ -104,6 +107,9 @@ export default function ReviewsClient({
   rules,
 }: ReviewsClientProps) {
   const router = useRouter();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const [tab, setTab] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ open: boolean; ok: boolean; msg: string }>({
@@ -112,7 +118,6 @@ export default function ReviewsClient({
     msg: '',
   });
 
-  // Per-review interactive state for classification items
   const [selectedCats, setSelectedCats] = useState<Record<number, string>>(() => {
     const init: Record<number, string> = {};
     for (const item of openQueue) {
@@ -131,7 +136,6 @@ export default function ReviewsClient({
     return init;
   });
 
-  // New rule quick form state
   const [newPattern, setNewPattern] = useState('');
   const [newRuleCatId, setNewRuleCatId] = useState('');
 
@@ -229,7 +233,43 @@ export default function ReviewsClient({
   const openPluggyCount = pluggyReviews.filter((r) => r.status === 'open').length;
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={3}>
+      <PageBanner
+        title="Fila de Revisão & Regras"
+        subtitle="Aprove classificações da IA, revise divergências Pluggy e gerencie regras"
+        breadcrumbs={[
+          { label: 'Início', href: '/' },
+          { label: 'Fila de Revisão' },
+        ]}
+      />
+
+      <Grid container spacing={2.5}>
+        <Grid size={{ xs: 4 }}>
+          <StatTile
+            label="Em aberto"
+            value={openQueue.length}
+            tone={openQueue.length > 0 ? 'warning' : 'success'}
+            iconSrc="/images/icons/stat-favorites.svg"
+          />
+        </Grid>
+        <Grid size={{ xs: 4 }}>
+          <StatTile
+            label="Reconcil. Pluggy"
+            value={openPluggyCount}
+            tone="secondary"
+            iconSrc="/images/icons/stat-connect.svg"
+          />
+        </Grid>
+        <Grid size={{ xs: 4 }}>
+          <StatTile
+            label="Regras ativas"
+            value={rules.filter((r) => r.active).length}
+            tone="primary"
+            iconSrc="/images/icons/stat-briefcase.svg"
+          />
+        </Grid>
+      </Grid>
+
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable">
           <Tab label={`Em aberto (${openQueue.length})`} />
@@ -239,18 +279,18 @@ export default function ReviewsClient({
         </Tabs>
       </Box>
 
-      {/* TAB 0: Open Review Queue (including 1-click AI classification approval) */}
+      {/* TAB 0: Open Review Queue */}
       {tab === 0 && (
         <DashboardCard
           title="Fila de Revisão em Aberto"
           subtitle="Aprove sugestões da IA em 1 clique, corrija categorias ou salve novas regras"
         >
           {openQueue.length === 0 ? (
-            <Alert severity="success" variant="outlined">
+            <Alert severity="success">
               Nenhuma pendência em aberto na fila de revisão!
             </Alert>
           ) : (
-            <Stack spacing={2}>
+            <Stack spacing={2.25}>
               {openQueue.map((item) => {
                 const d = item.details ?? {};
                 const isClassification = item.review_type === 'classification';
@@ -276,9 +316,15 @@ export default function ReviewsClient({
                   <Paper
                     key={item.id}
                     variant="outlined"
-                    sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}
+                    sx={{
+                      p: { xs: 2.25, sm: 2.75 },
+                      borderRadius: '10px',
+                      bgcolor: isDark
+                        ? 'rgba(255,255,255,0.02)'
+                        : 'rgba(93,135,255,0.025)',
+                    }}
                   >
-                    <Stack spacing={1.5}>
+                    <Stack spacing={1.75}>
                       <Stack
                         direction="row"
                         justifyContent="space-between"
@@ -287,29 +333,26 @@ export default function ReviewsClient({
                         gap={1}
                       >
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                          <Chip
+                          <StatusChip
+                            tone={isClassification ? 'primary' : 'warning'}
                             label={
                               REVIEW_TYPE_LABELS[item.review_type] ??
                               item.review_type
                             }
-                            size="small"
-                            color={isClassification ? 'primary' : 'warning'}
                           />
                           {sugCatName && (
-                            <Chip
+                            <StatusChip
+                              tone="secondary"
                               icon={<IconSparkles size={13} />}
                               label={`IA: ${sugCatName}${
                                 confidence !== null
                                   ? ` (${Math.round(confidence * 100)}%)`
                                   : ''
                               }`}
-                              size="small"
-                              color="secondary"
-                              variant="outlined"
                             />
                           )}
                         </Stack>
-                        <Typography variant="caption" color="textSecondary">
+                        <Typography variant="caption" color="text.secondary">
                           {occurredOn
                             ? formatDateBR(occurredOn)
                             : formatDateTimeBR(item.created_at)}
@@ -323,18 +366,23 @@ export default function ReviewsClient({
                         spacing={0.5}
                       >
                         <Box>
-                          <Typography variant="subtitle1" fontWeight={700}>
+                          <Typography variant="h6" fontWeight={600}>
                             {desc || issuer || item.message}
                           </Typography>
                           {(accountName || rationale) && (
-                            <Typography variant="caption" color="textSecondary" display="block">
+                            <Typography variant="caption" color="text.secondary" display="block">
                               {accountName ? `${accountName} • ` : ''}
                               {rationale || item.message}
                             </Typography>
                           )}
                         </Box>
                         {amount !== null && (
-                          <Typography variant="h6" fontWeight={700} flexShrink={0}>
+                          <Typography
+                            variant="h5"
+                            className="tabular-nums"
+                            fontWeight={700}
+                            flexShrink={0}
+                          >
                             {formatBRL(amount)}
                           </Typography>
                         )}
@@ -485,7 +533,7 @@ export default function ReviewsClient({
           title="Revisões de Reconciliação Open Finance (Pluggy)"
           subtitle={`${openPluggyCount} em aberto • ${pluggyReviews.length} exibidas`}
         >
-          <Stack divider={<Divider flexItem />} spacing={1.5}>
+          <Stack divider={<Divider flexItem />} spacing={1.75}>
             {pluggyReviews.map((pr) => {
               const d = pr.details ?? {};
               const desc =
@@ -510,31 +558,28 @@ export default function ReviewsClient({
                   py={0.5}
                 >
                   <Box minWidth={0}>
-                    <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
-                      <Chip
+                    <Stack direction="row" spacing={1} alignItems="center" mb={0.75}>
+                      <StatusChip
+                        tone={pr.status === 'open' ? 'warning' : 'neutral'}
                         label={PLUGGY_REASON_LABELS[pr.reason] ?? pr.reason}
-                        size="small"
-                        color={pr.status === 'open' ? 'warning' : 'default'}
-                        variant="outlined"
                       />
-                      <Chip
-                        label={pr.status}
-                        size="small"
-                        color={
+                      <StatusChip
+                        tone={
                           pr.status === 'resolved'
                             ? 'success'
                             : pr.status === 'open'
                               ? 'warning'
-                              : 'default'
+                              : 'neutral'
                         }
+                        label={pr.status}
                       />
                     </Stack>
-                    <Typography variant="subtitle2" fontWeight={700}>
+                    <Typography variant="subtitle2" fontWeight={600}>
                       {desc}{' '}
                       {amount !== null ? `• ${formatBRL(Math.abs(amount))}` : ''}
                     </Typography>
                     {resolution && (
-                      <Typography variant="caption" color="textSecondary" display="block">
+                      <Typography variant="caption" color="text.secondary" display="block">
                         {resolution}
                       </Typography>
                     )}
@@ -555,6 +600,7 @@ export default function ReviewsClient({
                         <Button
                           size="small"
                           variant="outlined"
+                          color="inherit"
                           disabled={isPending}
                           onClick={() => handlePluggyAction(pr.id, 'dismissed')}
                         >
@@ -565,6 +611,7 @@ export default function ReviewsClient({
                       <Button
                         size="small"
                         variant="text"
+                        color="primary"
                         disabled={isPending}
                         startIcon={<IconRotateClockwise size={14} />}
                         onClick={() => handlePluggyAction(pr.id, 'open')}
@@ -582,13 +629,13 @@ export default function ReviewsClient({
 
       {/* TAB 2: Classification Rules Manager */}
       {tab === 2 && (
-        <Stack spacing={2.5}>
+        <Stack spacing={3}>
           <DashboardCard
             title="Nova Regra de Classificação"
             subtitle="Regras determinísticas têm prioridade sobre a IA e custam R$ 0"
           >
             <Box component="form" onSubmit={handleAddRule}>
-              <Grid container spacing={1.5} alignItems="center">
+              <Grid container spacing={2} alignItems="center">
                 <Grid size={{ xs: 12, sm: 5 }}>
                   <TextField
                     size="small"
@@ -644,7 +691,7 @@ export default function ReviewsClient({
             title={`Regras Cadastradas (${rules.length})`}
             subtitle="Aplicadas em ordem de prioridade durante a conciliação"
           >
-            <Stack divider={<Divider flexItem />} spacing={1}>
+            <Stack divider={<Divider flexItem />} spacing={1.25}>
               {rules.map((r) => (
                 <Stack
                   key={r.id}
@@ -655,10 +702,10 @@ export default function ReviewsClient({
                   py={0.5}
                 >
                   <Box minWidth={0}>
-                    <Typography variant="subtitle2" fontWeight={700} noWrap>
+                    <Typography variant="subtitle2" fontWeight={600} noWrap>
                       {r.pattern}
                     </Typography>
-                    <Typography variant="caption" color="textSecondary">
+                    <Typography variant="caption" color="text.secondary">
                       {r.match_type} • Prioridade {r.priority} →{' '}
                       <strong>{catLabelById.get(r.category_id) ?? `#${r.category_id}`}</strong>
                     </Typography>
@@ -709,7 +756,7 @@ export default function ReviewsClient({
           title="Histórico de Revisões Resolvidas"
           subtitle="Últimos 30 registros concluídos"
         >
-          <Stack divider={<Divider flexItem />} spacing={1.25}>
+          <Stack divider={<Divider flexItem />} spacing={1.5}>
             {recentResolvedQueue.map((item) => (
               <Stack
                 key={item.id}
@@ -720,30 +767,29 @@ export default function ReviewsClient({
                 py={0.5}
               >
                 <Box>
-                  <Stack direction="row" spacing={1} mb={0.25}>
-                    <Chip
+                  <Stack direction="row" spacing={1} mb={0.5}>
+                    <StatusChip
+                      tone="neutral"
                       label={
                         REVIEW_TYPE_LABELS[item.review_type] ?? item.review_type
                       }
-                      size="small"
-                      variant="outlined"
                     />
-                    <Chip
+                    <StatusChip
+                      tone={item.status === 'resolved' ? 'success' : 'neutral'}
                       label={item.status}
-                      size="small"
-                      color={item.status === 'resolved' ? 'success' : 'default'}
                     />
                   </Stack>
                   <Typography variant="body2" fontWeight={600}>
                     {item.message}
                   </Typography>
-                  <Typography variant="caption" color="textSecondary">
+                  <Typography variant="caption" color="text.secondary">
                     Resolvido em {formatDateTimeBR(item.resolved_at)}
                   </Typography>
                 </Box>
                 <Button
                   size="small"
                   variant="text"
+                  color="primary"
                   disabled={isPending}
                   startIcon={<IconRotateClockwise size={14} />}
                   onClick={() => handleQueueAction(item.id, 'open')}

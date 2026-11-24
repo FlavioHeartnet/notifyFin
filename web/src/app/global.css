@@ -15,13 +15,27 @@ body {
   display: none;
 }
 
-/* ApexCharts tooltip readability in dark mode */
-html.dark .apexcharts-tooltip {
-  background: #253662 !important;
-  border-color: #333f55 !important;
-  color: #eaeff4 !important;
+/* Tabular financial figures */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
+
+/* Modernize ApexCharts tooltip polish */
+.apexcharts-tooltip {
+  border-radius: 8px !important;
+  box-shadow: 0px 6px 16px rgba(42, 53, 71, 0.14) !important;
+  border: 1px solid rgba(42, 53, 71, 0.1) !important;
+}
+
+html.dark .apexcharts-tooltip {
+  background: #2a3547 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
 html.dark .apexcharts-tooltip-title {
-  background: #1c2742 !important;
-  border-color: #333f55 !important;
+  background: #202938 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
 }

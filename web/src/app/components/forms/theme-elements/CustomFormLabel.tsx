@@ -1,19 +1,34 @@
+'use client';
 import React from 'react';
-import { styled }  from "@mui/system";
-import { Typography } from '@mui/material';
+import { Typography, type TypographyProps } from '@mui/material';
 
-const CustomFormLabel = styled((props: any) => (
+interface CustomFormLabelProps extends TypographyProps<'label'> {
+  htmlFor?: string;
+}
+
+const CustomFormLabel: React.FC<CustomFormLabelProps> = ({
+  sx,
+  children,
+  ...props
+}) => (
   <Typography
-    variant="subtitle1"
-    fontWeight={600}
-    {...props}
     component="label"
-    htmlFor={props.htmlFor}
-  />
-))(() => ({
-  marginBottom: '5px',
-  marginTop: '25px',
-  display: 'block',
-}));
+    variant="subtitle2"
+    {...props}
+    sx={[
+      {
+        display: 'block',
+        fontWeight: 600,
+        fontSize: '0.875rem',
+        color: 'text.primary',
+        mb: 0.75,
+        letterSpacing: '-0.015em',
+      },
+      ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+    ]}
+  >
+    {children}
+  </Typography>
+);
 
 export default CustomFormLabel;

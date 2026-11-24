@@ -6,7 +6,6 @@ import {
   Avatar,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Divider,
   Drawer,
@@ -43,6 +42,9 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import PageBanner from '@/app/components/shared/PageBanner';
+import StatTile from '@/app/components/shared/StatTile';
+import StatusChip, { type SoftTone } from '@/app/components/shared/StatusChip';
 import {
   ECONOMIC_EFFECT_LABELS,
   formatBRL,
@@ -121,7 +123,6 @@ export default function TransactionsClient({
   const searchParams = useSearchParams();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isDark = theme.palette.mode === 'dark';
 
   const [searchInput, setSearchInput] = useState(initialFilters.q);
   const [selectedTx, setSelectedTx] = useState<TxListItem | null>(null);
@@ -134,7 +135,6 @@ export default function TransactionsClient({
     msg: '',
   });
 
-  // Group categories hierarchically for the Select dropdown
   const groupedCategories = useMemo(() => {
     const parents = categories
       .filter((c) => c.parent_id === null)
@@ -199,85 +199,47 @@ export default function TransactionsClient({
   );
 
   return (
-    <Stack spacing={2.5}>
-      {/* Summary Strip */}
-      <Grid container spacing={1.5}>
-        <Grid size={{ xs: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Gastos (filtro)
-            </Typography>
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              color="primary.main"
-              sx={{ fontSize: { xs: '0.92rem', sm: '1.15rem' } }}
-              noWrap
-            >
-              {formatBRL(summary.totalSpending)}
-            </Typography>
-          </Paper>
+    <Stack spacing={3}>
+      <PageBanner
+        title="Movimentações Financeiras"
+        subtitle="Extrato reconciliado com reclassificação rápida"
+        breadcrumbs={[
+          { label: 'Início', href: '/' },
+          { label: 'Movimentações' },
+        ]}
+      />
+
+      {/* Modernize Pastel Summary Tiles */}
+      <Grid container spacing={2.5}>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <StatTile
+            label="Gastos (filtro)"
+            value={formatBRL(summary.totalSpending)}
+            tone="primary"
+            iconSrc="/images/icons/stat-user.svg"
+          />
         </Grid>
-        <Grid size={{ xs: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Entradas (filtro)
-            </Typography>
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              color="success.main"
-              sx={{ fontSize: { xs: '0.92rem', sm: '1.15rem' } }}
-              noWrap
-            >
-              {formatBRL(summary.totalCredits)}
-            </Typography>
-          </Paper>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <StatTile
+            label="Entradas (filtro)"
+            value={formatBRL(summary.totalCredits)}
+            tone="success"
+            iconSrc="/images/icons/stat-speech-bubble.svg"
+          />
         </Grid>
-        <Grid size={{ xs: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Registros
-            </Typography>
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              sx={{ fontSize: { xs: '0.92rem', sm: '1.15rem' } }}
-              noWrap
-            >
-              {totalCount.toLocaleString('pt-BR')}
-            </Typography>
-          </Paper>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <StatTile
+            label="Registros encontrados"
+            value={totalCount.toLocaleString('pt-BR')}
+            tone="secondary"
+            iconSrc="/images/icons/stat-briefcase.svg"
+          />
         </Grid>
       </Grid>
 
       {/* Filter Bar */}
       <DashboardCard>
-        <Grid container spacing={1.5} alignItems="center">
+        <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, md: 4 }}>
             <Box
               component="form"
@@ -400,6 +362,8 @@ export default function TransactionsClient({
             <Grid size={{ xs: 12 }}>
               <Button
                 size="small"
+                variant="text"
+                color="primary"
                 startIcon={<IconFilterOff size={16} />}
                 onClick={() => {
                   setSearchInput('');
@@ -413,20 +377,20 @@ export default function TransactionsClient({
         </Grid>
       </DashboardCard>
 
-      {/* Transactions List: Mobile Cards / Desktop Table */}
+      {/* Transactions Table (Modernize Figma Tables 325:5045) */}
       <DashboardCard
-        title="Movimentações Financeiras"
-        subtitle="Toque em qualquer registro para ver detalhes e reclassificar a categoria"
+        title="Extrato do Ledger"
+        subtitle="Clique em qualquer movimentação para ver detalhes e ajustar a categoria"
         noPadding
       >
         {transactions.length === 0 ? (
           <Box py={6} px={2} textAlign="center">
-            <Typography color="textSecondary">
+            <Typography color="text.secondary">
               Nenhuma movimentação encontrada para os filtros selecionados.
             </Typography>
           </Box>
         ) : isMobile ? (
-          <Stack divider={<Divider flexItem />} sx={{ px: 2, pb: 2 }}>
+          <Stack divider={<Divider flexItem />} sx={{ px: 2.5, pb: 2 }}>
             {transactions.map((tx) => {
               const isCredit = tx.direction === 'credit';
               return (
@@ -434,7 +398,7 @@ export default function TransactionsClient({
                   key={tx.id}
                   onClick={() => handleOpenDetail(tx)}
                   sx={{
-                    py: 1.5,
+                    py: 1.75,
                     cursor: 'pointer',
                     '&:active': { opacity: 0.75 },
                   }}
@@ -448,16 +412,10 @@ export default function TransactionsClient({
                     <Stack direction="row" spacing={1.25} minWidth={0}>
                       <Avatar
                         sx={{
-                          width: 34,
-                          height: 34,
+                          width: 36,
+                          height: 36,
                           mt: 0.25,
-                          bgcolor: isCredit
-                            ? isDark
-                              ? 'rgba(19,222,185,0.16)'
-                              : '#E6FFFA'
-                            : isDark
-                              ? 'rgba(250,137,107,0.16)'
-                              : '#FDEDE8',
+                          bgcolor: isCredit ? 'success.light' : 'error.light',
                           color: isCredit ? 'success.main' : 'error.main',
                         }}
                       >
@@ -471,26 +429,19 @@ export default function TransactionsClient({
                         <Typography variant="subtitle2" fontWeight={600} noWrap>
                           {tx.raw_description}
                         </Typography>
-                        <Typography variant="caption" color="textSecondary" display="block" noWrap>
+                        <Typography variant="caption" color="text.secondary" display="block" noWrap>
                           {formatDateBR(tx.occurred_on)} • {tx.accountName}
                         </Typography>
-                        <Stack direction="row" spacing={0.5} mt={0.5} flexWrap="wrap" useFlexGap>
+                        <Stack direction="row" spacing={0.5} mt={0.75} flexWrap="wrap" useFlexGap>
                           {tx.categoryName ? (
-                            <Chip
-                              label={tx.categoryName}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                              sx={{ height: 20, fontSize: '0.68rem' }}
-                            />
+                            <StatusChip tone="primary" label={tx.categoryName} />
                           ) : (
-                            <Chip
+                            <StatusChip
+                              tone="neutral"
                               label={
                                 ECONOMIC_EFFECT_LABELS[tx.economic_effect] ??
                                 tx.economic_effect
                               }
-                              size="small"
-                              sx={{ height: 20, fontSize: '0.68rem' }}
                             />
                           )}
                         </Stack>
@@ -499,6 +450,7 @@ export default function TransactionsClient({
 
                     <Typography
                       variant="subtitle2"
+                      className="tabular-nums"
                       fontWeight={700}
                       flexShrink={0}
                       color={isCredit ? 'success.main' : 'text.primary'}
@@ -512,20 +464,30 @@ export default function TransactionsClient({
           </Stack>
         ) : (
           <TableContainer>
-            <Table size="small">
+            <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Data</TableCell>
-                  <TableCell>Descrição</TableCell>
+                  <TableCell sx={{ pl: 3.5 }}>Data</TableCell>
+                  <TableCell>Movimentação</TableCell>
                   <TableCell>Conta monitorada</TableCell>
                   <TableCell>Categoria</TableCell>
                   <TableCell>Efeito</TableCell>
-                  <TableCell align="right">Valor</TableCell>
+                  <TableCell align="right" sx={{ pr: 3.5 }}>
+                    Valor
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {transactions.map((tx) => {
                   const isCredit = tx.direction === 'credit';
+                  const effectTone: SoftTone = tx.is_spending
+                    ? 'neutral'
+                    : tx.economic_effect === 'income'
+                      ? 'success'
+                      : tx.economic_effect === 'refund'
+                        ? 'info'
+                        : 'secondary';
+
                   return (
                     <TableRow
                       key={tx.id}
@@ -533,57 +495,74 @@ export default function TransactionsClient({
                       onClick={() => handleOpenDetail(tx)}
                       sx={{ cursor: 'pointer' }}
                     >
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ pl: 3.5, whiteSpace: 'nowrap', color: 'text.secondary' }}>
                         {formatDateBR(tx.occurred_on)}
                       </TableCell>
-                      <TableCell sx={{ maxWidth: 320 }}>
-                        <Typography variant="subtitle2" fontWeight={600} noWrap>
-                          {tx.raw_description}
-                        </Typography>
-                        {tx.operationTypeName && (
-                          <Typography variant="caption" color="textSecondary">
-                            {tx.operationTypeName}
-                          </Typography>
-                        )}
+                      <TableCell sx={{ maxWidth: 340 }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                          <Avatar
+                            sx={{
+                              width: 34,
+                              height: 34,
+                              bgcolor: isCredit
+                                ? 'success.light'
+                                : tx.is_own_transfer
+                                  ? 'secondary.light'
+                                  : 'error.light',
+                              color: isCredit
+                                ? 'success.main'
+                                : tx.is_own_transfer
+                                  ? 'secondary.main'
+                                  : 'error.main',
+                            }}
+                          >
+                            {isCredit ? (
+                              <IconArrowUpRight size={16} />
+                            ) : (
+                              <IconArrowDownRight size={16} />
+                            )}
+                          </Avatar>
+                          <Box minWidth={0}>
+                            <Typography variant="subtitle2" fontWeight={600} noWrap>
+                              {tx.raw_description}
+                            </Typography>
+                            {tx.operationTypeName && (
+                              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                                {tx.operationTypeName}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Stack>
                       </TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                        <Typography variant="body2">{tx.accountName}</Typography>
+                      <TableCell sx={{ whiteSpace: 'nowrap', color: 'text.secondary' }}>
+                        {tx.accountName}
                       </TableCell>
                       <TableCell>
                         {tx.categoryName ? (
-                          <Chip
+                          <StatusChip
+                            tone="primary"
                             icon={<IconTag size={13} />}
                             label={tx.categoryName}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
                           />
                         ) : (
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography variant="caption" color="text.secondary">
                             Sem categoria
                           </Typography>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Chip
+                        <StatusChip
+                          tone={effectTone}
                           label={
                             ECONOMIC_EFFECT_LABELS[tx.economic_effect] ??
                             tx.economic_effect
                           }
-                          size="small"
-                          color={
-                            tx.is_spending
-                              ? 'default'
-                              : tx.economic_effect === 'income'
-                                ? 'success'
-                                : 'info'
-                          }
-                          variant="outlined"
                         />
                       </TableCell>
-                      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      <TableCell align="right" sx={{ pr: 3.5, whiteSpace: 'nowrap' }}>
                         <Typography
                           variant="subtitle2"
+                          className="tabular-nums"
                           fontWeight={700}
                           color={isCredit ? 'success.main' : 'text.primary'}
                         >
@@ -598,13 +577,12 @@ export default function TransactionsClient({
           </TableContainer>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <Box
             sx={{
               display: 'flex',
               justifyContent: 'center',
-              py: 2,
+              py: 2.5,
               borderTop: `1px solid ${theme.palette.divider}`,
             }}
           >
@@ -630,7 +608,7 @@ export default function TransactionsClient({
             maxHeight: isMobile ? '88dvh' : '100dvh',
             borderTopLeftRadius: isMobile ? 16 : 0,
             borderTopRightRadius: isMobile ? 16 : 0,
-            p: 3,
+            p: 3.5,
           },
         }}
       >
@@ -638,10 +616,10 @@ export default function TransactionsClient({
           <Stack spacing={2.5}>
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
               <Box>
-                <Typography variant="caption" color="textSecondary">
+                <Typography variant="caption" color="text.secondary">
                   Movimentação #{selectedTx.id}
                 </Typography>
-                <Typography variant="h5" fontWeight={700}>
+                <Typography variant="h4" className="tabular-nums" fontWeight={700}>
                   {selectedTx.direction === 'credit' ? '+' : '-'}{' '}
                   {formatBRL(selectedTx.amount)}
                 </Typography>
@@ -653,41 +631,39 @@ export default function TransactionsClient({
 
             <Paper
               variant="outlined"
-              sx={{ p: 2, borderRadius: 2, bgcolor: 'background.default' }}
+              sx={{ p: 2.25, borderRadius: '10px', bgcolor: 'background.default' }}
             >
               <Typography variant="subtitle2" fontWeight={700} gutterBottom>
                 {selectedTx.raw_description}
               </Typography>
-              <Stack spacing={0.75} mt={1}>
+              <Stack spacing={1} mt={1.5}>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="caption" color="textSecondary">Data</Typography>
+                  <Typography variant="caption" color="text.secondary">Data</Typography>
                   <Typography variant="caption" fontWeight={600}>
                     {formatDateBR(selectedTx.occurred_on)}
                   </Typography>
                 </Stack>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="caption" color="textSecondary">Conta</Typography>
+                  <Typography variant="caption" color="text.secondary">Conta</Typography>
                   <Typography variant="caption" fontWeight={600}>
                     {selectedTx.accountName}
                   </Typography>
                 </Stack>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="caption" color="textSecondary">Efeito econômico</Typography>
+                  <Typography variant="caption" color="text.secondary">Efeito econômico</Typography>
                   <Typography variant="caption" fontWeight={600}>
                     {ECONOMIC_EFFECT_LABELS[selectedTx.economic_effect] ??
                       selectedTx.economic_effect}
                   </Typography>
                 </Stack>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="caption" color="textSecondary">Reconciliação</Typography>
-                  <Typography variant="caption" fontWeight={600}>
-                    {selectedTx.reconciliation_status}
-                  </Typography>
+                  <Typography variant="caption" color="text.secondary">Reconciliação</Typography>
+                  <StatusChip tone="info" label={selectedTx.reconciliation_status} />
                 </Stack>
                 {selectedTx.balance_after !== null && (
                   <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="caption" color="textSecondary">Saldo após</Typography>
-                    <Typography variant="caption" fontWeight={600}>
+                    <Typography variant="caption" color="text.secondary">Saldo após</Typography>
+                    <Typography variant="caption" className="tabular-nums" fontWeight={600}>
                       {formatBRL(selectedTx.balance_after)}
                     </Typography>
                   </Stack>
@@ -697,9 +673,8 @@ export default function TransactionsClient({
 
             <Divider />
 
-            {/* Reclassify Category Form */}
             <Stack spacing={2}>
-              <Typography variant="subtitle1" fontWeight={700}>
+              <Typography variant="h6" fontWeight={600}>
                 Reclassificar Categoria de Gasto
               </Typography>
 

@@ -5,7 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -16,7 +15,6 @@ import {
   Grid,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Snackbar,
   Stack,
@@ -25,9 +23,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { IconCheck, IconRepeat, IconX } from '@tabler/icons-react';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import PageBanner from '@/app/components/shared/PageBanner';
+import StatTile from '@/app/components/shared/StatTile';
+import StatusChip from '@/app/components/shared/StatusChip';
 import {
   EXPENSE_TYPE_LABELS,
   formatBRL,
@@ -75,7 +75,6 @@ export default function RecurrencesClient({
   candidates,
 }: RecurrencesClientProps) {
   const router = useRouter();
-  const theme = useTheme();
   const [tab, setTab] = useState(candidates.length > 0 ? 1 : 0);
   const [confirmTarget, setConfirmTarget] =
     useState<RecurringCandidateItem | null>(null);
@@ -89,7 +88,6 @@ export default function RecurrencesClient({
     msg: '',
   });
 
-  // Group recurring transactions by recurring_name (latest charge, total charges, average)
   const groupedServices = useMemo(() => {
     const map = new Map<
       string,
@@ -178,75 +176,44 @@ export default function RecurrencesClient({
   };
 
   return (
-    <Stack spacing={2.5}>
-      {/* KPI Header */}
-      <Grid container spacing={1.5}>
-        <Grid size={{ xs: 6, md: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Custo mensal estimado
-            </Typography>
-            <Typography variant="h5" fontWeight={700} color="primary.main">
-              {formatBRL(estimatedMonthlyTotal)}
-            </Typography>
-            <Typography variant="caption" color="textSecondary">
-              Soma da última cobrança por serviço
-            </Typography>
-          </Paper>
+    <Stack spacing={3}>
+      <PageBanner
+        title="Recorrências & Assinaturas"
+        subtitle="Gastos fixos recorrentes, candidatos pendentes e regras de detecção"
+        breadcrumbs={[
+          { label: 'Início', href: '/' },
+          { label: 'Recorrências' },
+        ]}
+      />
+
+      {/* Modernize Pastel Summary Tiles */}
+      <Grid container spacing={2.5}>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <StatTile
+            label="Custo mensal estimado"
+            value={formatBRL(estimatedMonthlyTotal)}
+            sublabel="Última cobrança por serviço"
+            tone="primary"
+            iconSrc="/images/icons/stat-mailbox.svg"
+          />
         </Grid>
-        <Grid size={{ xs: 6, md: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Serviços ativos
-            </Typography>
-            <Typography variant="h5" fontWeight={700}>
-              {groupedServices.length}
-            </Typography>
-            <Typography variant="caption" color="textSecondary">
-              {rules.filter((r) => r.active).length} regras configuradas
-            </Typography>
-          </Paper>
+        <Grid size={{ xs: 6, sm: 4 }}>
+          <StatTile
+            label="Serviços ativos"
+            value={groupedServices.length}
+            sublabel={`${rules.filter((r) => r.active).length} regras ativas`}
+            tone="success"
+            iconSrc="/images/icons/stat-connect.svg"
+          />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Candidatos a confirmar
-            </Typography>
-            <Typography
-              variant="h5"
-              fontWeight={700}
-              color={candidates.length > 0 ? 'warning.main' : 'success.main'}
-            >
-              {candidates.length}
-            </Typography>
-            <Typography variant="caption" color="textSecondary">
-              Lançamentos ambíguos (ex.: Claro / Amazon)
-            </Typography>
-          </Paper>
+        <Grid size={{ xs: 6, sm: 4 }}>
+          <StatTile
+            label="Candidatos a confirmar"
+            value={candidates.length}
+            sublabel="Lançamentos ambíguos"
+            tone={candidates.length > 0 ? 'warning' : 'secondary'}
+            iconSrc="/images/icons/stat-favorites.svg"
+          />
         </Grid>
       </Grid>
 
@@ -260,35 +227,52 @@ export default function RecurrencesClient({
 
       {/* TAB 0: Services */}
       {tab === 0 && (
-        <Grid container spacing={2}>
+        <Grid container spacing={2.5}>
           {groupedServices.map((svc) => (
             <Grid key={svc.name} size={{ xs: 12, sm: 6, lg: 4 }}>
               <DashboardCard>
-                <Stack spacing={1.25}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-                      <IconRepeat size={18} color={theme.palette.primary.main} />
-                      <Typography variant="subtitle1" fontWeight={700} noWrap>
+                <Stack spacing={1.5}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                    <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
+                      <Box
+                        sx={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: '8px',
+                          bgcolor: 'primary.light',
+                          color: 'primary.main',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <IconRepeat size={19} stroke={1.65} />
+                      </Box>
+                      <Typography variant="h6" fontWeight={600} noWrap>
                         {svc.name}
                       </Typography>
                     </Stack>
-                    <Chip
+                    <StatusChip
+                      tone="secondary"
                       label={EXPENSE_TYPE_LABELS[svc.expenseType] ?? svc.expenseType}
-                      size="small"
-                      variant="outlined"
                     />
                   </Stack>
-                  <Typography variant="h5" fontWeight={700}>
+
+                  <Typography variant="h4" className="tabular-nums" fontWeight={700}>
                     {formatBRL(svc.latestAmount)}
                   </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {svc.accountName} • {svc.charges} cobrança(s) • Última em{' '}
-                    {formatDateBR(svc.latestDate)}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    Média histórica: {formatBRL(svc.total / svc.charges)} (Total:{' '}
-                    {formatBRL(svc.total)})
-                  </Typography>
+
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {svc.accountName} • {svc.charges} cobrança(s) • Última em{' '}
+                      {formatDateBR(svc.latestDate)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Média histórica: {formatBRL(svc.total / svc.charges)} (Total:{' '}
+                      {formatBRL(svc.total)})
+                    </Typography>
+                  </Box>
                 </Stack>
               </DashboardCard>
             </Grid>
@@ -296,18 +280,18 @@ export default function RecurrencesClient({
         </Grid>
       )}
 
-      {/* TAB 1: Candidates with Confirm / Exclude */}
+      {/* TAB 1: Candidates */}
       {tab === 1 && (
         <DashboardCard
           title="Candidatos Pendentes de Confirmação"
           subtitle="Confirme se cada lançamento é recorrente ou exclua da fila"
         >
           {candidates.length === 0 ? (
-            <Typography color="textSecondary" py={4} textAlign="center">
+            <Typography color="text.secondary" py={4} textAlign="center">
               Nenhum candidato pendente no momento.
             </Typography>
           ) : (
-            <Stack divider={<Divider flexItem />} spacing={1.5}>
+            <Stack divider={<Divider flexItem />} spacing={1.75}>
               {candidates.map((c) => (
                 <Stack
                   key={c.transaction_id}
@@ -315,20 +299,25 @@ export default function RecurrencesClient({
                   justifyContent="space-between"
                   alignItems={{ xs: 'flex-start', sm: 'center' }}
                   spacing={1.5}
-                  py={0.75}
+                  py={0.5}
                 >
                   <Box minWidth={0}>
-                    <Typography variant="subtitle2" fontWeight={700}>
+                    <Typography variant="subtitle2" fontWeight={600}>
                       {c.raw_description}
                     </Typography>
-                    <Typography variant="caption" color="textSecondary">
+                    <Typography variant="caption" color="text.secondary">
                       {formatDateBR(c.occurred_on)} ({formatMonthLabel(c.occurred_on)}) • Motivo:{' '}
                       {c.review_reason}
                     </Typography>
                   </Box>
 
                   <Stack direction="row" spacing={1} alignItems="center" flexShrink={0}>
-                    <Typography variant="subtitle1" fontWeight={700} mr={1}>
+                    <Typography
+                      variant="subtitle1"
+                      className="tabular-nums"
+                      fontWeight={700}
+                      mr={1}
+                    >
                       {formatBRL(c.amount)}
                     </Typography>
                     <Button
@@ -365,7 +354,7 @@ export default function RecurrencesClient({
           title="Regras de Classificação de Recorrências"
           subtitle="Padrões cadastrados em recurring_classification_rules"
         >
-          <Stack divider={<Divider flexItem />} spacing={1.25}>
+          <Stack divider={<Divider flexItem />} spacing={1.5}>
             {rules.map((r) => (
               <Stack
                 key={r.id}
@@ -376,23 +365,21 @@ export default function RecurrencesClient({
                 py={0.5}
               >
                 <Box>
-                  <Typography variant="subtitle2" fontWeight={700}>
+                  <Typography variant="subtitle2" fontWeight={600}>
                     {r.label}
                   </Typography>
-                  <Typography variant="caption" color="textSecondary">
+                  <Typography variant="caption" color="text.secondary">
                     Match: <code>{r.match_text}</code>
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Chip
+                  <StatusChip
+                    tone="secondary"
                     label={EXPENSE_TYPE_LABELS[r.expense_type] ?? r.expense_type}
-                    size="small"
-                    variant="outlined"
                   />
-                  <Chip
+                  <StatusChip
+                    tone={r.active ? 'success' : 'neutral'}
                     label={r.active ? 'Ativa' : 'Inativa'}
-                    size="small"
-                    color={r.active ? 'success' : 'default'}
                   />
                 </Stack>
               </Stack>
@@ -412,7 +399,7 @@ export default function RecurrencesClient({
         <DialogContent>
           {confirmTarget && (
             <Stack spacing={2} pt={1}>
-              <Alert severity="info" variant="outlined">
+              <Alert severity="info">
                 <strong>{confirmTarget.raw_description}</strong> —{' '}
                 {formatBRL(confirmTarget.amount)} em{' '}
                 {formatDateBR(confirmTarget.occurred_on)}
@@ -449,8 +436,10 @@ export default function RecurrencesClient({
             </Stack>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setConfirmTarget(null)}>Cancelar</Button>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setConfirmTarget(null)} color="inherit">
+            Cancelar
+          </Button>
           <Button
             variant="contained"
             disabled={!label.trim() || isPending}

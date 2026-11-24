@@ -5,11 +5,9 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
-  Chip,
   Divider,
   Grid,
   InputAdornment,
-  Paper,
   Stack,
   Tab,
   Tabs,
@@ -24,6 +22,9 @@ import {
   IconSearch,
 } from '@tabler/icons-react';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import PageBanner from '@/app/components/shared/PageBanner';
+import StatTile from '@/app/components/shared/StatTile';
+import StatusChip from '@/app/components/shared/StatusChip';
 import { formatBRL, formatDateBR, formatDateTimeBR } from '@/lib/format';
 
 export interface FiscalItemRow {
@@ -98,62 +99,40 @@ export default function DocumentsClient({
   );
 
   return (
-    <Stack spacing={2.5}>
-      {/* Summary */}
-      <Grid container spacing={1.5}>
+    <Stack spacing={3}>
+      <PageBanner
+        title="Documentos Fiscais & Importações"
+        subtitle="Notas fiscais extraídas, lotes auditáveis e arquivos fonte"
+        breadcrumbs={[
+          { label: 'Início', href: '/' },
+          { label: 'Documentos Fiscais' },
+        ]}
+      />
+
+      <Grid container spacing={2.5}>
         <Grid size={{ xs: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Notas fiscais
-            </Typography>
-            <Typography variant="h5" fontWeight={700}>
-              {fiscalDocs.length}
-            </Typography>
-          </Paper>
+          <StatTile
+            label="Notas fiscais"
+            value={fiscalDocs.length}
+            tone="primary"
+            iconSrc="/images/icons/stat-mailbox.svg"
+          />
         </Grid>
         <Grid size={{ xs: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Lotes de importação
-            </Typography>
-            <Typography variant="h5" fontWeight={700}>
-              {batches.length}
-            </Typography>
-          </Paper>
+          <StatTile
+            label="Lotes de importação"
+            value={batches.length}
+            tone="secondary"
+            iconSrc="/images/icons/stat-briefcase.svg"
+          />
         </Grid>
         <Grid size={{ xs: 4 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Arquivos fonte
-            </Typography>
-            <Typography variant="h5" fontWeight={700}>
-              {sourceFiles.length}
-            </Typography>
-          </Paper>
+          <StatTile
+            label="Arquivos fonte"
+            value={sourceFiles.length}
+            tone="success"
+            iconSrc="/images/icons/stat-connect.svg"
+          />
         </Grid>
       </Grid>
 
@@ -171,7 +150,7 @@ export default function DocumentsClient({
           title="Documentos Fiscais e Itens"
           subtitle={`Total filtrado: ${formatBRL(totalDocsAmount)}`}
         >
-          <Stack spacing={2}>
+          <Stack spacing={2.25}>
             <TextField
               size="small"
               fullWidth
@@ -189,13 +168,17 @@ export default function DocumentsClient({
               }}
             />
 
-            <Stack spacing={1}>
+            <Stack spacing={1.25}>
               {filteredDocs.map((doc) => (
                 <Accordion
                   key={doc.id}
                   variant="outlined"
                   disableGutters
-                  sx={{ borderRadius: '8px !important', '&:before': { display: 'none' } }}
+                  sx={{
+                    borderRadius: '10px !important',
+                    borderColor: theme.palette.divider,
+                    '&:before': { display: 'none' },
+                  }}
                 >
                   <AccordionSummary expandIcon={<IconChevronDown size={18} />}>
                     <Stack
@@ -204,32 +187,51 @@ export default function DocumentsClient({
                       alignItems="center"
                       width="100%"
                       pr={1}
-                      spacing={1}
+                      spacing={1.25}
                     >
-                      <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
-                        <IconFileInvoice size={18} color={theme.palette.primary.main} />
+                      <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '8px',
+                            bgcolor: 'primary.light',
+                            color: 'primary.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <IconFileInvoice size={18} />
+                        </Box>
                         <Box minWidth={0}>
-                          <Typography variant="subtitle2" fontWeight={700} noWrap>
+                          <Typography variant="subtitle2" fontWeight={600} noWrap>
                             {doc.issuer_name || 'Emissor não identificado'}
                           </Typography>
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography variant="caption" color="text.secondary">
                             {doc.document_type.toUpperCase()} •{' '}
                             {formatDateBR(doc.issued_at)} • {doc.items.length} item(ns)
                           </Typography>
                         </Box>
                       </Stack>
-                      <Typography variant="subtitle2" fontWeight={700} flexShrink={0}>
+                      <Typography
+                        variant="subtitle2"
+                        className="tabular-nums"
+                        fontWeight={700}
+                        flexShrink={0}
+                      >
                         {formatBRL(doc.total_amount)}
                       </Typography>
                     </Stack>
                   </AccordionSummary>
                   <AccordionDetails>
                     {doc.items.length === 0 ? (
-                      <Typography variant="caption" color="textSecondary">
+                      <Typography variant="caption" color="text.secondary">
                         Sem itens detalhados extraídos para este documento.
                       </Typography>
                     ) : (
-                      <Stack divider={<Divider flexItem />} spacing={0.75}>
+                      <Stack divider={<Divider flexItem />} spacing={1}>
                         {doc.items.map((item) => (
                           <Stack
                             key={item.id}
@@ -243,7 +245,7 @@ export default function DocumentsClient({
                                 {item.description}
                               </Typography>
                               {item.quantity !== null && (
-                                <Typography variant="caption" color="textSecondary">
+                                <Typography variant="caption" color="text.secondary">
                                   Qtd: {item.quantity}
                                   {item.unit_price !== null
                                     ? ` × ${formatBRL(item.unit_price)}`
@@ -251,7 +253,12 @@ export default function DocumentsClient({
                                 </Typography>
                               )}
                             </Box>
-                            <Typography variant="body2" fontWeight={600} flexShrink={0}>
+                            <Typography
+                              variant="body2"
+                              className="tabular-nums"
+                              fontWeight={600}
+                              flexShrink={0}
+                            >
                               {formatBRL(item.total_amount)}
                             </Typography>
                           </Stack>
@@ -272,7 +279,7 @@ export default function DocumentsClient({
           title="Lotes de Importação"
           subtitle="Histórico auditável de importações manuais e em lote"
         >
-          <Stack divider={<Divider flexItem />} spacing={1.5}>
+          <Stack divider={<Divider flexItem />} spacing={1.75}>
             {batches.map((b) => (
               <Stack
                 key={b.id}
@@ -282,18 +289,16 @@ export default function DocumentsClient({
                 spacing={1}
               >
                 <Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle2" fontWeight={700}>
+                  <Stack direction="row" spacing={1} alignItems="center" mb={0.25}>
+                    <Typography variant="subtitle2" fontWeight={600}>
                       Lote #{b.id} ({b.requested_via})
                     </Typography>
-                    <Chip
+                    <StatusChip
+                      tone={b.status === 'completed' ? 'success' : 'neutral'}
                       label={b.status}
-                      size="small"
-                      color={b.status === 'completed' ? 'success' : 'default'}
-                      variant="outlined"
                     />
                   </Stack>
-                  <Typography variant="caption" color="textSecondary">
+                  <Typography variant="caption" color="text.secondary">
                     Início: {formatDateTimeBR(b.started_at)}
                     {b.completed_at
                       ? ` • Fim: ${formatDateTimeBR(b.completed_at)}`
@@ -316,7 +321,7 @@ export default function DocumentsClient({
           title="Arquivos Fonte Importados"
           subtitle="Extratos bancários, faturas CSV/PDF e comprovantes"
         >
-          <Stack divider={<Divider flexItem />} spacing={1}>
+          <Stack divider={<Divider flexItem />} spacing={1.25}>
             {sourceFiles.map((f) => (
               <Stack
                 key={f.id}
@@ -326,22 +331,34 @@ export default function DocumentsClient({
                 spacing={1.25}
                 py={0.5}
               >
-                <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
-                  <IconFolder size={17} color={theme.palette.text.secondary} />
+                <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '8px',
+                      bgcolor: 'secondary.light',
+                      color: 'secondary.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <IconFolder size={18} />
+                  </Box>
                   <Box minWidth={0}>
                     <Typography variant="subtitle2" fontWeight={600} noWrap>
                       {f.file_name}
                     </Typography>
-                    <Typography variant="caption" color="textSecondary">
+                    <Typography variant="caption" color="text.secondary">
                       {f.source_kind} • {f.provider} • {formatDateTimeBR(f.created_at)}
                     </Typography>
                   </Box>
                 </Stack>
-                <Chip
+                <StatusChip
+                  tone={f.extraction_status === 'extracted' ? 'success' : 'neutral'}
                   label={f.extraction_status}
-                  size="small"
-                  variant="outlined"
-                  color={f.extraction_status === 'extracted' ? 'success' : 'default'}
                 />
               </Stack>
             ))}

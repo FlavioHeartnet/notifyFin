@@ -1,19 +1,19 @@
 const config = {
-  activeDir: "ltr", // This can be ltr or rtl
-  activeMode: "light", // This can be light or dark
-  activeTheme: "BLUE_THEME", // BLUE_THEME, GREEN_THEME, AQUA_THEME, PURPLE_THEME, ORANGE_THEME
-  activeLayout: "vertical", // This can be vertical or horizontal
-  isLayout: "boxed", // This can be full or boxed
+  activeDir: 'ltr',
+  activeMode: 'light' as 'light' | 'dark',
+  activeTheme: 'BLUE_THEME',
+  activeLayout: 'vertical',
+  isLayout: 'boxed',
   isSidebarHover: false,
-  isCollapse: "full-sidebar",
-  isLanguage: "en",
+  isCollapse: 'full-sidebar',
+  isLanguage: 'pt-BR',
   isCardShadow: true,
   isMobileSidebar: false,
   isHorizontal: false,
-  isBorderRadius: 7,
-  sidebarWidth: 270,
-  miniSidebarWidth: 87,
-  topbarHeight: 70,
+  isBorderRadius: 12,
+  sidebarWidth: 264,
+  miniSidebarWidth: 80,
+  topbarHeight: 64,
 };
 
 export default config;

@@ -29,50 +29,60 @@ import {
 import { useTheme } from '@mui/material/styles';
 import {
   IconAlertCircle,
+  IconAperture,
   IconArrowsExchange,
+  IconBell,
   IconBuildingBank,
   IconCheck,
   IconFileInvoice,
-  IconLayoutDashboard,
   IconLogout,
   IconMenu2,
   IconMoon,
   IconPalette,
+  IconPower,
   IconRefresh,
   IconRepeat,
+  IconSearch,
   IconSun,
 } from '@tabler/icons-react';
 import { CustomizerContext } from '@/app/context/customizerContext';
 import NotifyFinLogo from '@/app/components/shared/NotifyFinLogo';
 import { NAV_ITEMS, type NavItem } from './nav-items';
 
-const SIDEBAR_WIDTH = 270;
-const MINI_SIDEBAR_WIDTH = 84;
+const SIDEBAR_WIDTH = 264;
+const MINI_SIDEBAR_WIDTH = 80;
 
 const COLOR_THEMES = [
   { id: 'BLUE_THEME', label: 'Modernize Blue', color: '#5D87FF' },
   { id: 'AQUA_THEME', label: 'Aqua', color: '#0074BA' },
   { id: 'GREEN_THEME', label: 'Esmeralda', color: '#0A7EA4' },
   { id: 'PURPLE_THEME', label: 'Roxo', color: '#763EBD' },
-  { id: 'ORANGE_THEME', label: 'Laranja', color: '#FA896B' },
+  { id: 'ORANGE_THEME', label: 'Coral', color: '#FA896B' },
+];
+
+const HEADER_QUICK_LINKS = [
+  { label: 'Extrato', href: '/movimentacoes' },
+  { label: 'Contas', href: '/contas' },
+  { label: 'Recorrências', href: '/recorrencias' },
+  { label: 'Revisões', href: '/revisoes' },
 ];
 
 function renderNavIcon(iconName: NavItem['iconName'], size = 20) {
   switch (iconName) {
     case 'dashboard':
-      return <IconLayoutDashboard size={size} stroke={1.75} />;
+      return <IconAperture size={size} stroke={1.65} />;
     case 'transactions':
-      return <IconArrowsExchange size={size} stroke={1.75} />;
+      return <IconArrowsExchange size={size} stroke={1.65} />;
     case 'accounts':
-      return <IconBuildingBank size={size} stroke={1.75} />;
+      return <IconBuildingBank size={size} stroke={1.65} />;
     case 'recurring':
-      return <IconRepeat size={size} stroke={1.75} />;
+      return <IconRepeat size={size} stroke={1.65} />;
     case 'reviews':
-      return <IconAlertCircle size={size} stroke={1.75} />;
+      return <IconAlertCircle size={size} stroke={1.65} />;
     case 'documents':
-      return <IconFileInvoice size={size} stroke={1.75} />;
+      return <IconFileInvoice size={size} stroke={1.65} />;
     case 'sync':
-      return <IconRefresh size={size} stroke={1.75} />;
+      return <IconRefresh size={size} stroke={1.65} />;
   }
 }
 
@@ -91,6 +101,7 @@ interface DashboardShellProps {
 export default function DashboardShell({ user, children }: DashboardShellProps) {
   const pathname = usePathname();
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
   const {
     activeMode,
@@ -114,17 +125,15 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
     return pathname.startsWith(href);
   };
 
-  const currentNav =
-    NAV_ITEMS.find((item) => isActive(item.href)) ?? NAV_ITEMS[0];
-
   const mobileNavItems = NAV_ITEMS.filter((item) => item.mobilePrimary);
 
-  const initials = user.displayName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase())
-    .join('') || 'NF';
+  const initials =
+    user.displayName
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase())
+      .join('') || 'NF';
 
   const getBadgeCount = (id: string) => {
     if (id === 'reviews') return user.openReviewsCount;
@@ -141,43 +150,49 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
         bgcolor: 'background.paper',
       }}
     >
+      {/* Brand Header (matches Figma Sidebar Logo area) */}
       <Box
         sx={{
-          px: compact ? 2 : 3,
-          height: 70,
+          px: compact ? 1.5 : 3,
+          height: 64,
           display: 'flex',
           alignItems: 'center',
           justifyContent: compact ? 'center' : 'flex-start',
         }}
       >
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <NotifyFinLogo compact={compact} />
+          <NotifyFinLogo compact={compact} size="md" />
         </Link>
       </Box>
 
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: compact ? 1.25 : 2, py: 1 }}>
+      {/* Navigation Sections */}
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: compact ? 1.25 : 2, py: 1.5 }}>
         {(['financas', 'gestao'] as const).map((section) => {
           const items = NAV_ITEMS.filter((i) => i.section === section);
           return (
-            <Box key={section} mb={2}>
+            <Box key={section} mb={2.5}>
               {!compact && (
                 <Typography
-                  variant="caption"
+                  variant="overline"
                   sx={{
                     px: 1.5,
-                    pb: 0.75,
+                    pb: 1,
                     display: 'block',
                     fontWeight: 700,
                     letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'text.secondary',
-                    fontSize: '0.7rem',
+                    color: isDark
+                      ? 'rgba(255, 255, 255, 0.8)'
+                      : 'rgba(42, 53, 71, 0.85)',
+                    fontSize: '0.72rem',
                   }}
                 >
                   {section === 'financas' ? 'Finanças' : 'Gestão & Auditoria'}
                 </Typography>
               )}
-              <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <List
+                disablePadding
+                sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
+              >
                 {items.map((item) => {
                   const active = isActive(item.href);
                   const badge = getBadgeCount(item.id);
@@ -194,11 +209,16 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                         selected={active}
                         sx={{
                           borderRadius: '8px',
-                          px: compact ? 1.5 : 1.75,
-                          py: 1.1,
+                          px: compact ? 1.25 : 1.75,
+                          py: 1.15,
                           justifyContent: compact ? 'center' : 'flex-start',
-                          color: active ? '#FFFFFF' : 'text.primary',
+                          color: active
+                            ? '#FFFFFF'
+                            : isDark
+                              ? 'rgba(255, 255, 255, 0.8)'
+                              : 'rgba(42, 53, 71, 0.8)',
                           bgcolor: active ? 'primary.main' : 'transparent',
+                          transition: 'all 0.16s ease',
                           '&.Mui-selected': {
                             bgcolor: 'primary.main',
                             color: '#FFFFFF',
@@ -209,7 +229,10 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                           '&:hover': {
                             bgcolor: active
                               ? 'primary.dark'
-                              : theme.palette.action.hover,
+                              : isDark
+                                ? 'rgba(93, 135, 255, 0.12)'
+                                : 'rgba(93, 135, 255, 0.08)',
+                            color: active ? '#FFFFFF' : 'primary.main',
                           },
                         }}
                       >
@@ -221,7 +244,7 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                         >
                           <Badge
                             badgeContent={compact ? badge : 0}
-                            color="warning"
+                            color="error"
                             max={99}
                           >
                             {renderNavIcon(item.iconName, 20)}
@@ -233,7 +256,8 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                               primary={item.label}
                               primaryTypographyProps={{
                                 fontSize: '0.875rem',
-                                fontWeight: active ? 600 : 500,
+                                fontWeight: active ? 600 : 400,
+                                letterSpacing: '-0.015em',
                                 noWrap: true,
                               }}
                             />
@@ -241,15 +265,15 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                               <Chip
                                 label={badge}
                                 size="small"
-                                color={active ? 'default' : 'warning'}
                                 sx={{
                                   height: 20,
+                                  minWidth: 22,
+                                  borderRadius: '999px',
                                   fontSize: '0.7rem',
                                   fontWeight: 700,
-                                  bgcolor: active
-                                    ? 'rgba(255,255,255,0.22)'
-                                    : undefined,
-                                  color: active ? '#FFFFFF' : undefined,
+                                  bgcolor: 'secondary.main',
+                                  color: '#FFFFFF',
+                                  '& .MuiChip-label': { px: 0.9 },
                                 }}
                               />
                             )}
@@ -265,55 +289,76 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
         })}
       </Box>
 
-      {/* Modernize Sidebar Profile Footer */}
+      {/* Modernize Figma Sidebar Profile Footer (node 201:20653) */}
       {!compact && (
-        <Box sx={{ p: 2 }}>
-          <Paper
-            elevation={0}
+        <Box sx={{ p: 2.25 }}>
+          <Box
             sx={{
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor:
-                activeMode === 'dark'
-                  ? 'rgba(93, 135, 255, 0.14)'
-                  : 'primary.light',
+              p: 1.75,
+              borderRadius: '8px',
+              bgcolor: 'rgba(73, 190, 255, 0.1)',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               gap: 1.25,
             }}
           >
-            <Avatar
-              sx={{
-                width: 38,
-                height: 38,
-                bgcolor: 'primary.main',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-              }}
-            >
-              {initials}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-              <Typography variant="subtitle2" fontWeight={700} noWrap>
-                {user.displayName}
-              </Typography>
-              <Typography variant="caption" color="textSecondary" noWrap display="block">
-                Titular
-              </Typography>
-            </Box>
+            <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
+              <Avatar
+                src="/images/brand/user-avatar.png"
+                alt={user.displayName}
+                sx={{
+                  width: 38,
+                  height: 38,
+                  bgcolor: 'primary.main',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                }}
+              >
+                {initials}
+              </Avatar>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: '0.925rem',
+                    lineHeight: 1.3,
+                    color: 'text.primary',
+                  }}
+                  noWrap
+                >
+                  {user.displayName.split(' ')[0]}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
+                  display="block"
+                >
+                  Titular
+                </Typography>
+              </Box>
+            </Stack>
+
             <form action="/auth/signout" method="post">
-              <Tooltip title="Sair">
+              <Tooltip title="Sair da conta">
                 <IconButton
                   type="submit"
                   size="small"
-                  color="primary"
                   aria-label="Sair"
+                  sx={{
+                    color: 'primary.main',
+                    '&:hover': {
+                      bgcolor: 'rgba(93, 135, 255, 0.14)',
+                    },
+                  }}
                 >
-                  <IconLogout size={18} />
+                  <IconPower size={20} stroke={1.75} />
                 </IconButton>
               </Tooltip>
             </form>
-          </Paper>
+          </Box>
         </Box>
       )}
     </Box>
@@ -342,6 +387,7 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
             '& .MuiDrawer-paper': {
               width: sidebarWidth,
               boxSizing: 'border-box',
+              bgcolor: 'background.paper',
               borderRight: `1px solid ${theme.palette.divider}`,
               transition: theme.transitions.create('width', {
                 duration: theme.transitions.duration.shorter,
@@ -362,6 +408,7 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
             '& .MuiDrawer-paper': {
               width: SIDEBAR_WIDTH,
               boxSizing: 'border-box',
+              bgcolor: 'background.paper',
             },
           }}
         >
@@ -377,18 +424,18 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100dvh',
+          bgcolor: 'background.default',
         }}
       >
-        {/* Modernize Sticky Topbar */}
+        {/* Modernize Figma Header (node 201:20654 Light / 747:13465 Dark) */}
         <AppBar
           position="sticky"
           color="default"
           elevation={0}
           sx={{
-            bgcolor:
-              activeMode === 'dark'
-                ? 'rgba(23, 28, 35, 0.88)'
-                : 'rgba(255, 255, 255, 0.88)',
+            bgcolor: isDark
+              ? 'rgba(42, 53, 71, 0.92)'
+              : 'rgba(255, 255, 255, 0.92)',
             backdropFilter: 'blur(10px)',
             borderBottom: `1px solid ${theme.palette.divider}`,
             color: 'text.primary',
@@ -396,47 +443,80 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
         >
           <Toolbar
             sx={{
-              minHeight: { xs: 60, lg: 70 },
+              minHeight: { xs: 60, lg: 64 },
               px: { xs: 1.5, sm: 3 },
-              gap: 1,
+              gap: { xs: 1, sm: 2 },
             }}
           >
-            <IconButton
-              edge="start"
-              color="inherit"
-              aria-label="Abrir menu"
-              onClick={() => {
-                if (isDesktop) {
-                  setIsCollapse(isMini ? 'full-sidebar' : 'mini-sidebar');
-                } else {
-                  setIsMobileSidebar(true);
-                }
-              }}
-            >
-              <IconMenu2 size={21} />
-            </IconButton>
-
-            {!isDesktop && (
-              <Box sx={{ mr: 0.5 }}>
-                <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <NotifyFinLogo compact />
-                </Link>
-              </Box>
-            )}
-
-            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-              <Typography
-                variant="h6"
-                fontWeight={700}
-                noWrap
-                sx={{ fontSize: { xs: '1rem', sm: '1.1rem' } }}
+            {/* Left Group: Menu toggle, Search shortcut, Quick Links */}
+            <Stack direction="row" spacing={{ xs: 0.75, sm: 1.5 }} alignItems="center">
+              <IconButton
+                edge="start"
+                color="inherit"
+                aria-label="Alternar menu"
+                onClick={() => {
+                  if (isDesktop) {
+                    setIsCollapse(isMini ? 'full-sidebar' : 'mini-sidebar');
+                  } else {
+                    setIsMobileSidebar(true);
+                  }
+                }}
               >
-                {currentNav.label}
-              </Typography>
-            </Box>
+                <IconMenu2 size={22} stroke={1.65} />
+              </IconButton>
 
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              {/* Color Palette Picker (Modernize signature) */}
+              {!isDesktop && (
+                <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <NotifyFinLogo compact size="sm" />
+                </Link>
+              )}
+
+              <Tooltip title="Buscar movimentações">
+                <IconButton
+                  component={Link}
+                  href="/movimentacoes"
+                  color="inherit"
+                  aria-label="Buscar movimentações"
+                  size="small"
+                >
+                  <IconSearch size={20} stroke={1.65} />
+                </IconButton>
+              </Tooltip>
+
+              {isDesktop && (
+                <Stack direction="row" spacing={2.5} alignItems="center" sx={{ pl: 1 }}>
+                  {HEADER_QUICK_LINKS.map((ql) => {
+                    const active = isActive(ql.href);
+                    return (
+                      <Typography
+                        key={ql.href}
+                        component={Link}
+                        href={ql.href}
+                        sx={{
+                          fontSize: '0.9375rem',
+                          fontWeight: active ? 600 : 400,
+                          letterSpacing: '-0.02em',
+                          color: active
+                            ? 'primary.main'
+                            : isDark
+                              ? 'rgba(255,255,255,0.8)'
+                              : 'rgba(42,53,71,0.8)',
+                          transition: 'color 0.15s ease',
+                          '&:hover': { color: 'primary.main' },
+                        }}
+                      >
+                        {ql.label}
+                      </Typography>
+                    );
+                  })}
+                </Stack>
+              )}
+            </Stack>
+
+            <Box sx={{ flexGrow: 1 }} />
+
+            {/* Right Group: Palette, Dark/Light, Reviews Bell, Profile Avatar */}
+            <Stack direction="row" spacing={{ xs: 0.5, sm: 1.25 }} alignItems="center">
               <Tooltip title="Cor do tema">
                 <IconButton
                   size="small"
@@ -444,7 +524,7 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                   onClick={(e) => setPaletteAnchor(e.currentTarget)}
                   aria-label="Cor do tema"
                 >
-                  <IconPalette size={20} />
+                  <IconPalette size={20} stroke={1.65} />
                 </IconButton>
               </Tooltip>
               <Menu
@@ -463,22 +543,23 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                     <Stack direction="row" spacing={1.25} alignItems="center" width="100%">
                       <Box
                         sx={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
+                          width: 14,
+                          height: 14,
+                          borderRadius: '999px',
                           bgcolor: t.color,
                         }}
                       />
-                      <Typography variant="body2" flexGrow={1}>
+                      <Typography variant="body2" flexGrow={1} fontWeight={500}>
                         {t.label}
                       </Typography>
-                      {activeTheme === t.id && <IconCheck size={16} />}
+                      {activeTheme === t.id && (
+                        <IconCheck size={16} color={theme.palette.primary.main} />
+                      )}
                     </Stack>
                   </MenuItem>
                 ))}
               </Menu>
 
-              {/* Light / Dark Toggle */}
               <Tooltip title={activeMode === 'dark' ? 'Modo claro' : 'Modo escuro'}>
                 <IconButton
                   size="small"
@@ -487,15 +568,20 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                   aria-label="Alternar modo claro/escuro"
                 >
                   {activeMode === 'dark' ? (
-                    <IconSun size={20} />
+                    <IconSun size={20} stroke={1.65} />
                   ) : (
-                    <IconMoon size={20} />
+                    <IconMoon size={20} stroke={1.65} />
                   )}
                 </IconButton>
               </Tooltip>
 
-              {/* Reviews quick badge */}
-              <Tooltip title="Fila de revisão">
+              <Tooltip
+                title={
+                  user.openReviewsCount > 0
+                    ? `${user.openReviewsCount} pendência(s) na fila de revisão`
+                    : 'Fila de revisão em dia'
+                }
+              >
                 <IconButton
                   component={Link}
                   href="/revisoes"
@@ -503,19 +589,34 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                   color="inherit"
                   aria-label="Fila de revisão"
                 >
-                  <Badge badgeContent={user.openReviewsCount} color="warning">
-                    <IconAlertCircle size={20} />
+                  <Badge
+                    badgeContent={user.openReviewsCount}
+                    color="error"
+                    invisible={user.openReviewsCount === 0}
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        fontSize: '0.68rem',
+                        height: 17,
+                        minWidth: 17,
+                        bgcolor: '#FA896B',
+                        color: '#FFFFFF',
+                      },
+                    }}
+                  >
+                    <IconBell size={20} stroke={1.65} />
                   </Badge>
                 </IconButton>
               </Tooltip>
 
-              {/* User Avatar Menu */}
               <IconButton
                 size="small"
                 onClick={(e) => setProfileAnchor(e.currentTarget)}
-                aria-label="Perfil"
+                aria-label="Menu do perfil"
+                sx={{ p: 0.35 }}
               >
                 <Avatar
+                  src="/images/brand/user-avatar.png"
+                  alt={user.displayName}
                   sx={{
                     width: 32,
                     height: 32,
@@ -531,12 +632,13 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                 anchorEl={profileAnchor}
                 open={Boolean(profileAnchor)}
                 onClose={() => setProfileAnchor(null)}
+                PaperProps={{ sx: { minWidth: 220 } }}
               >
-                <Box sx={{ px: 2, py: 1 }}>
+                <Box sx={{ px: 2, py: 1.25 }}>
                   <Typography variant="subtitle2" fontWeight={700}>
                     {user.displayName}
                   </Typography>
-                  <Typography variant="caption" color="textSecondary">
+                  <Typography variant="caption" color="text.secondary">
                     {user.email}
                   </Typography>
                 </Box>
@@ -575,11 +677,11 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
           sx={{
             flexGrow: 1,
             width: '100%',
-            maxWidth: 1320,
+            maxWidth: 1240,
             mx: 'auto',
-            px: { xs: 1.5, sm: 2.5, lg: 3 },
-            pt: { xs: 2, sm: 3 },
-            pb: { xs: 11, lg: 4 },
+            px: { xs: 2, sm: 3 },
+            pt: { xs: 2.5, sm: 3 },
+            pb: { xs: 11, lg: 5 },
           }}
         >
           {children}
@@ -588,7 +690,7 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
         {/* Mobile Bottom Navigation */}
         {!isDesktop && (
           <Paper
-            elevation={8}
+            elevation={12}
             sx={{
               position: 'fixed',
               bottom: 0,
@@ -597,19 +699,19 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
               zIndex: theme.zIndex.appBar,
               borderTop: `1px solid ${theme.palette.divider}`,
               pb: 'env(safe-area-inset-bottom)',
+              bgcolor: 'background.paper',
             }}
           >
             <BottomNavigation
               showLabels
-              value={
-                mobileNavItems.findIndex((item) => isActive(item.href))
-              }
+              value={mobileNavItems.findIndex((item) => isActive(item.href))}
               sx={{
                 height: 62,
                 bgcolor: 'background.paper',
                 '& .MuiBottomNavigationAction-root': {
                   minWidth: 0,
                   px: 0.5,
+                  color: 'text.secondary',
                   '&.Mui-selected': {
                     color: 'primary.main',
                   },
@@ -630,7 +732,7 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
                     href={item.href}
                     label={item.shortLabel}
                     icon={
-                      <Badge badgeContent={badge} color="warning" max={99}>
+                      <Badge badgeContent={badge} color="error" max={99}>
                         {renderNavIcon(item.iconName, 20)}
                       </Badge>
                     }

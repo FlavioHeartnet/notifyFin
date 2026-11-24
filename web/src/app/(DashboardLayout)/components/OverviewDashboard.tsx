@@ -7,12 +7,21 @@ import {
   Avatar,
   Box,
   Button,
+  Card,
   Chip,
-  Divider,
+  FormControl,
   Grid,
   LinearProgress,
+  MenuItem,
   Paper,
+  Select,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -20,16 +29,17 @@ import type { ApexOptions } from 'apexcharts';
 import {
   IconAlertTriangle,
   IconArrowDownRight,
+  IconArrowUpLeft,
   IconArrowUpRight,
   IconBuildingBank,
   IconCreditCard,
+  IconCurrencyDollar,
+  IconLayoutGrid,
   IconRefresh,
-  IconRepeat,
-  IconTrendingDown,
-  IconTrendingUp,
-  IconWallet,
 } from '@tabler/icons-react';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import StatTile from '@/app/components/shared/StatTile';
+import StatusChip, { type SoftTone } from '@/app/components/shared/StatusChip';
 import ReconcileTriggerCard from './ReconcileTriggerCard';
 import {
   CHART_PALETTE,
@@ -135,7 +145,7 @@ export default function OverviewDashboard({
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
-  // Chronological order: oldest on the left → current/future on the right
+  // Chronological order: oldest on the left -> current/future on the right
   const availableMonths = useMemo(
     () =>
       monthlySummaries
@@ -187,20 +197,10 @@ export default function OverviewDashboard({
       .sort((a, b) => b.amount - a.amount);
   }, [spendingByMonthCategory, selectedMonth]);
 
-  // Previous month comparison for spending (ascending array -> idx - 1)
   const prevMonthKey = useMemo(() => {
     const idx = availableMonths.indexOf(selectedMonth);
     return idx > 0 ? availableMonths[idx - 1] : null;
   }, [availableMonths, selectedMonth]);
-
-  const incomeWindowLabel = useMemo(() => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    if (!y || !m) return 'Janela 25/mês ant. – 24/mês';
-    const prevDate = new Date(y, m - 2, 25);
-    const pm = String(prevDate.getMonth() + 1).padStart(2, '0');
-    const cm = String(m).padStart(2, '0');
-    return `Janela 25/${pm} a 24/${cm} (inclui salário)`;
-  }, [selectedMonth]);
 
   const prevSpending = useMemo(() => {
     if (!prevMonthKey) return 0;
@@ -222,16 +222,27 @@ export default function OverviewDashboard({
     [recurringByMonth, selectedMonth]
   );
 
-  // Last 10 historical months up to currentMonthKey for the main chart
+  // Last 8 historical months up to currentMonthKey for the Revenue Updates chart
   const chartMonths = useMemo(
     () =>
       monthlySummaries
         .filter((c) => c.month <= currentMonthKey)
         .sort((a, b) => a.month.localeCompare(b.month))
-        .slice(-10),
+        .slice(-8),
     [monthlySummaries, currentMonthKey]
   );
 
+  // Recurring sparkline history (last 8 months)
+  const recurringSparkData = useMemo(() => {
+    const sorted = [...recurringByMonth]
+      .filter((r) => r.month <= currentMonthKey)
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .slice(-8);
+    if (sorted.length < 2) return [0, selectedRecurring.amount, selectedRecurring.amount];
+    return sorted.map((r) => Number(r.amount.toFixed(2)));
+  }, [recurringByMonth, currentMonthKey, selectedRecurring.amount]);
+
+  // Modernize Revenue Updates bar chart (Figma 201:20663)
   const cashflowChartOptions: ApexOptions = useMemo(
     () => ({
       chart: {
@@ -240,24 +251,21 @@ export default function OverviewDashboard({
         foreColor: theme.palette.text.secondary,
         toolbar: { show: false },
       },
-      colors: [
-        theme.palette.success.main,
-        theme.palette.primary.main,
-        theme.palette.secondary.main,
-      ],
+      colors: [theme.palette.primary.main, theme.palette.secondary.main],
       plotOptions: {
         bar: {
           horizontal: false,
-          columnWidth: '58%',
+          columnWidth: '34%',
           borderRadius: 5,
           borderRadiusApplication: 'end',
         },
       },
       dataLabels: { enabled: false },
-      stroke: { show: true, width: 2, colors: ['transparent'] },
+      stroke: { show: true, width: 3, colors: ['transparent'] },
       grid: {
         borderColor: theme.palette.divider,
         strokeDashArray: 4,
+        xaxis: { lines: { show: false } },
       },
       xaxis: {
         categories: chartMonths.map((m) => formatMonthLabel(m.month)),
@@ -275,10 +283,7 @@ export default function OverviewDashboard({
           formatter: (val: number) => formatBRL(val),
         },
       },
-      legend: {
-        position: 'top',
-        horizontalAlign: 'left',
-      },
+      legend: { show: false },
     }),
     [chartMonths, theme, isDark]
   );
@@ -287,24 +292,20 @@ export default function OverviewDashboard({
     () => [
       {
         name: 'Entradas observadas',
-        data: chartMonths.map((m) => m.income),
+        data: chartMonths.map((m) => Number(m.income.toFixed(2))),
       },
       {
         name: 'Gastos reais',
-        data: chartMonths.map((m) => m.spending),
-      },
-      {
-        name: 'Estornos',
-        data: chartMonths.map((m) => m.refunds),
+        data: chartMonths.map((m) => Number(m.spending.toFixed(2))),
       },
     ],
     [chartMonths]
   );
 
-  // Top 6 categories + "Outras" for Donut chart
+  // Compact Donut for Medium Chart Card (Figma Yearly Backup 747:12453)
   const donutData = useMemo(() => {
-    const top = selectedCategories.slice(0, 6);
-    const rest = selectedCategories.slice(6);
+    const top = selectedCategories.slice(0, 3);
+    const rest = selectedCategories.slice(3);
     const restSum = rest.reduce((acc, r) => acc + r.amount, 0);
     const items = [...top];
     if (restSum > 0) {
@@ -313,110 +314,88 @@ export default function OverviewDashboard({
     return items;
   }, [selectedCategories, selectedMonth]);
 
-  const donutOptions: ApexOptions = useMemo(
+  const compactDonutOptions: ApexOptions = useMemo(
     () => ({
       chart: {
         type: 'donut',
         fontFamily: theme.typography.fontFamily,
-        foreColor: theme.palette.text.secondary,
+        sparkline: { enabled: true },
       },
       labels: donutData.map((d) => d.category),
-      colors: CHART_PALETTE,
+      colors: [
+        theme.palette.primary.main,
+        theme.palette.secondary.main,
+        theme.palette.success.main,
+        isDark ? 'rgba(255,255,255,0.14)' : 'rgba(93,135,255,0.14)',
+      ],
       stroke: { show: false },
       dataLabels: { enabled: false },
       legend: { show: false },
       plotOptions: {
         pie: {
           donut: {
-            size: '72%',
-            labels: {
-              show: true,
-              name: { show: true, fontSize: '12px' },
-              value: {
-                show: true,
-                fontSize: '16px',
-                fontWeight: 700,
-                formatter: (val: string) => formatCompactBRL(Number(val)),
-              },
-              total: {
-                show: true,
-                label: 'Gastos',
-                formatter: () => formatCompactBRL(selectedSummary.spending),
-              },
-            },
+            size: '74%',
           },
         },
       },
       tooltip: {
         theme: isDark ? 'dark' : 'light',
+        y: { formatter: (val: number) => formatBRL(val) },
+      },
+    }),
+    [donutData, theme, isDark]
+  );
+
+  // Smooth Wave Sparkline for Medium Chart Card (Figma Monthly Earnings 747:12498)
+  const waveSparkOptions: ApexOptions = useMemo(
+    () => ({
+      chart: {
+        type: 'area',
+        sparkline: { enabled: true },
+        fontFamily: theme.typography.fontFamily,
+      },
+      stroke: {
+        curve: 'smooth',
+        width: 2.5,
+      },
+      colors: [theme.palette.secondary.main],
+      fill: {
+        type: 'gradient',
+        gradient: {
+          shadeIntensity: 0,
+          opacityFrom: isDark ? 0.28 : 0.2,
+          opacityTo: 0.02,
+          stops: [0, 100],
+        },
+      },
+      tooltip: {
+        theme: isDark ? 'dark' : 'light',
+        fixed: { enabled: false },
+        x: { show: false },
         y: {
+          title: { formatter: () => 'Recorrências' },
           formatter: (val: number) => formatBRL(val),
         },
       },
     }),
-    [donutData, selectedSummary.spending, theme, isDark]
+    [theme, isDark]
   );
 
-  const kpis = [
-    {
-      label: 'Gastos reais do mês',
-      value: formatBRL(selectedSummary.spending),
-      sub:
-        selectedSummary.refunds > 0
-          ? `Líquido c/ estornos: ${formatBRL(selectedSummary.spending - selectedSummary.refunds)}`
-          : spendingDeltaPct !== null
-            ? `${spendingDeltaPct >= 0 ? '+' : ''}${spendingDeltaPct.toFixed(1)}% vs mês ant.`
-            : 'Sem base anterior',
-      icon: <IconTrendingDown size={22} />,
-      bg: isDark ? 'rgba(93, 135, 255, 0.16)' : '#ECF2FF',
-      color: theme.palette.primary.main,
-      positive: spendingDeltaPct !== null ? spendingDeltaPct <= 0 : true,
-    },
-    {
-      label: 'Entradas observadas',
-      value: formatBRL(selectedSummary.income),
-      sub: incomeWindowLabel,
-      icon: <IconTrendingUp size={22} />,
-      bg: isDark ? 'rgba(19, 222, 185, 0.16)' : '#E6FFFA',
-      color: theme.palette.success.main,
-      positive: true,
-    },
-    {
-      label: 'Resultado do mês',
-      value: formatBRL(selectedSummary.netResult),
-      sub: 'Entradas − Gastos + Estornos',
-      icon: <IconWallet size={22} />,
-      bg:
-        selectedSummary.netResult >= 0
-          ? isDark
-            ? 'rgba(73, 190, 255, 0.16)'
-            : '#E8F7FF'
-          : isDark
-            ? 'rgba(250, 137, 107, 0.16)'
-            : '#FDEDE8',
-      color:
-        selectedSummary.netResult >= 0
-          ? theme.palette.secondary.main
-          : theme.palette.error.main,
-      positive: selectedSummary.netResult >= 0,
-    },
-    {
-      label: 'Recorrências',
-      value: formatBRL(selectedRecurring.amount),
-      sub: `${selectedRecurring.charges} cobrança(s) no mês`,
-      icon: <IconRepeat size={22} />,
-      bg: isDark ? 'rgba(255, 174, 31, 0.16)' : '#FEF5E5',
-      color: theme.palette.warning.main,
-      positive: true,
-    },
-  ];
+  const totalLatestBills = useMemo(
+    () => latestBills.slice(0, 4).reduce((acc, b) => acc + b.total_amount, 0),
+    [latestBills]
+  );
 
-  // Keep all months chronologically (oldest left -> newest/future right)
-  const visibleMonthPills = availableMonths;
+  const hasExclusions =
+    selectedSummary.transfers > 0 ||
+    selectedSummary.settlements > 0 ||
+    selectedSummary.investmentApplied > 0 ||
+    selectedSummary.investmentRedeemed > 0 ||
+    selectedSummary.refunds > 0;
 
   return (
-    <Stack spacing={2.5}>
-      {/* Welcome & Month Selector Banner */}
+    <Stack spacing={3}>
+      {/* Compact Header & Month Selector Rail */}
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         justifyContent="space-between"
@@ -424,75 +403,149 @@ export default function OverviewDashboard({
         spacing={1.5}
       >
         <Box>
-          <Typography variant="h4" fontWeight={700}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}
+          >
             Olá, {profileName.split(' ')[0]}
           </Typography>
-          <Typography variant="body2" color="textSecondary">
+          <Typography variant="body1" color="text.secondary">
             Consolidado de <strong>{formatMonthLong(selectedMonth)}</strong> ·{' '}
-            {selectedSummary.txCount} mov. no mês ({totalTransactionsCount.toLocaleString('pt-BR')} no ledger em {accountsCount} contas)
+            {selectedSummary.txCount} mov. no mês (
+            {totalTransactionsCount.toLocaleString('pt-BR')} no ledger)
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1}>
-          <Button
-            component={Link}
-            href={`/movimentacoes?month=${selectedMonth}`}
-            variant="contained"
-            size="small"
-          >
-            Ver extrato
-          </Button>
-          <Button
-            component={Link}
-            href="/revisoes"
-            variant="outlined"
-            size="small"
-            color={openReviewsCount > 0 ? 'warning' : 'primary'}
-          >
-            Revisões ({openReviewsCount})
-          </Button>
-        </Stack>
+        <Box
+          className="scroll-rail"
+          sx={{
+            display: 'flex',
+            gap: 0.75,
+            maxWidth: '100%',
+            py: 0.25,
+          }}
+        >
+          {availableMonths.map((m) => {
+            const active = m === selectedMonth;
+            const isFuture = m > currentMonthKey;
+            return (
+              <Chip
+                key={m}
+                ref={active ? activeMonthPillRef : undefined}
+                label={`${formatMonthLabel(m)}${isFuture ? ' • Fut.' : ''}`}
+                clickable
+                onClick={() => setSelectedMonth(m)}
+                sx={{
+                  flexShrink: 0,
+                  height: 30,
+                  borderRadius: '8px',
+                  fontWeight: active ? 600 : 500,
+                  bgcolor: active
+                    ? 'primary.main'
+                    : isDark
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'rgba(42,53,71,0.05)',
+                  color: active ? '#FFFFFF' : 'text.secondary',
+                  '&:hover': {
+                    bgcolor: active
+                      ? 'primary.dark'
+                      : isDark
+                        ? 'rgba(93,135,255,0.18)'
+                        : 'rgba(93,135,255,0.12)',
+                    color: active ? '#FFFFFF' : 'primary.main',
+                  },
+                }}
+              />
+            );
+          })}
+        </Box>
       </Stack>
 
-      {/* Scrollable Month Selector Pills (Chronological: oldest left -> newest right) */}
-      <Box className="scroll-rail" sx={{ display: 'flex', gap: 1, pb: 0.5 }}>
-        {visibleMonthPills.map((m) => {
-          const active = m === selectedMonth;
-          const isFuture = m > currentMonthKey;
-          return (
-            <Chip
-              key={m}
-              ref={active ? activeMonthPillRef : undefined}
-              label={`${formatMonthLabel(m)}${isFuture ? ' • Fut.' : ''}`}
-              clickable
-              color={active ? 'primary' : 'default'}
-              variant={active ? 'filled' : 'outlined'}
-              onClick={() => setSelectedMonth(m)}
-              sx={{
-                fontWeight: active ? 700 : 500,
-                flexShrink: 0,
-              }}
-            />
-          );
-        })}
-      </Box>
+      {/* Row 1: 6 Modernize Pastel Stat Tiles (Figma 201:20655) */}
+      <Grid container spacing={{ xs: 1.5, sm: 2.5 }}>
+        <Grid size={{ xs: 6, sm: 4, lg: 2 }}>
+          <StatTile
+            label="Gastos reais"
+            value={formatCompactBRL(selectedSummary.spending)}
+            sublabel={formatBRL(selectedSummary.spending)}
+            tone="primary"
+            iconSrc="/images/icons/stat-user.svg"
+            href={`/movimentacoes?month=${selectedMonth}&effect=spending`}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, lg: 2 }}>
+          <StatTile
+            label="Entradas"
+            value={formatCompactBRL(selectedSummary.income)}
+            sublabel={formatBRL(selectedSummary.income)}
+            tone="success"
+            iconSrc="/images/icons/stat-speech-bubble.svg"
+            href={`/movimentacoes?month=${selectedMonth}&effect=income`}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, lg: 2 }}>
+          <StatTile
+            label="Resultado"
+            value={formatCompactBRL(selectedSummary.netResult)}
+            sublabel={selectedSummary.netResult >= 0 ? 'Superávit' : 'Déficit'}
+            tone={selectedSummary.netResult >= 0 ? 'secondary' : 'error'}
+            iconSrc="/images/icons/stat-briefcase.svg"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, lg: 2 }}>
+          <StatTile
+            label="Recorrências"
+            value={formatCompactBRL(selectedRecurring.amount)}
+            sublabel={`${selectedRecurring.charges} cobrança(s)`}
+            tone="warning"
+            iconSrc="/images/icons/stat-mailbox.svg"
+            href="/recorrencias"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, lg: 2 }}>
+          <StatTile
+            label="Revisões"
+            value={openReviewsCount}
+            sublabel={
+              recurringCandidatesCount > 0
+                ? `+${recurringCandidatesCount} fixos`
+                : 'Em dia'
+            }
+            tone="error"
+            iconSrc="/images/icons/stat-favorites.svg"
+            href="/revisoes"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, lg: 2 }}>
+          <StatTile
+            label="Contas ativas"
+            value={accountsCount}
+            sublabel={`${activeInstallmentsCount} parcelamento(s)`}
+            tone="info"
+            iconSrc="/images/icons/stat-connect.svg"
+            href="/contas"
+          />
+        </Grid>
+      </Grid>
 
-      {/* On-demand Open Finance Reconciliation Banner (appears when new POSTED refs exist) */}
+      {/* Actionable Banners (Reconciliation & Pending Reviews) */}
       <ReconcileTriggerCard
         unlinkedPostedCount={unlinkedPostedCount}
         unlinkedPendingCount={unlinkedPendingCount}
         compact
       />
 
-      {/* Pending Action Banner */}
       {(openReviewsCount > 0 || recurringCandidatesCount > 0) && (
         <Alert
           severity="warning"
-          variant="outlined"
           icon={<IconAlertTriangle size={20} />}
           sx={{
-            borderRadius: 2,
-            bgcolor: isDark ? 'rgba(255, 174, 31, 0.08)' : '#FFFBF2',
+            borderRadius: '12px',
+            bgcolor: isDark
+              ? 'rgba(255, 174, 31, 0.12)'
+              : 'rgba(255, 174, 31, 0.1)',
+            color: 'text.primary',
+            '& .MuiAlert-icon': { color: 'warning.main' },
           }}
           action={
             <Stack direction="row" spacing={1}>
@@ -521,463 +574,735 @@ export default function OverviewDashboard({
             </Stack>
           }
         >
-          <Typography variant="body2" fontWeight={600}>
-            Você tem pendências para confirmar: {openReviewsCount} item(ns) na fila de revisão e {recurringCandidatesCount} candidato(s) de recorrência.
+          <Typography variant="subtitle2" fontWeight={600}>
+            Pendências para confirmar: {openReviewsCount} item(ns) na fila de revisão e{' '}
+            {recurringCandidatesCount} candidato(s) de recorrência.
           </Typography>
         </Alert>
       )}
 
-      {/* 4 Modernize KPI Cards */}
-      <Grid container spacing={{ xs: 1.5, sm: 2.5 }}>
-        {kpis.map((kpi) => (
-          <Grid key={kpi.label} size={{ xs: 6, lg: 3 }}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: { xs: 2, sm: 2.5 },
-                borderRadius: 2.5,
-                bgcolor: 'background.paper',
-                border: `1px solid ${theme.palette.divider}`,
-                height: '100%',
-              }}
-            >
-              <Stack spacing={1.5}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Avatar
-                    sx={{
-                      width: { xs: 38, sm: 44 },
-                      height: { xs: 38, sm: 44 },
-                      bgcolor: kpi.bg,
-                      color: kpi.color,
-                      borderRadius: '10px',
-                    }}
-                    variant="rounded"
-                  >
-                    {kpi.icon}
-                  </Avatar>
-                </Stack>
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="textSecondary"
-                    fontWeight={600}
-                    sx={{ display: 'block', mb: 0.25 }}
-                  >
-                    {kpi.label}
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    fontWeight={700}
-                    sx={{
-                      fontSize: { xs: '1.05rem', sm: '1.35rem' },
-                      letterSpacing: '-0.02em',
-                    }}
-                    noWrap
-                  >
-                    {kpi.value}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    color={kpi.positive ? 'textSecondary' : 'error.main'}
-                    sx={{ display: 'block', mt: 0.35 }}
-                    noWrap
-                  >
-                    {kpi.sub}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Transparent breakdown of non-spending / neutral movements excluded from KPIs */}
-      {(selectedSummary.transfers > 0 ||
-        selectedSummary.settlements > 0 ||
-        selectedSummary.investmentApplied > 0 ||
-        selectedSummary.investmentRedeemed > 0 ||
-        selectedSummary.refunds > 0) && (
-        <Paper
-          elevation={0}
-          sx={{
-            px: { xs: 1.75, sm: 2.5 },
-            py: 1.5,
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            justifyContent="space-between"
-            flexWrap="wrap"
-            useFlexGap
-          >
-            <Typography variant="caption" color="textSecondary" fontWeight={600}>
-              Excluídos dos gastos/entradas em {formatMonthLabel(selectedMonth)} (sem contagem dupla):
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {selectedSummary.transfers > 0 && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={`Transf. internas: ${formatBRL(selectedSummary.transfers)}`}
-                />
-              )}
-              {selectedSummary.settlements > 0 && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={`Pag. faturas: ${formatBRL(selectedSummary.settlements)}`}
-                />
-              )}
-              {selectedSummary.investmentApplied > 0 && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  color="info"
-                  label={`Aplic. invest.: ${formatBRL(selectedSummary.investmentApplied)}`}
-                />
-              )}
-              {selectedSummary.investmentRedeemed > 0 && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  color="info"
-                  label={`Resgates invest.: ${formatBRL(selectedSummary.investmentRedeemed)}`}
-                />
-              )}
-              {selectedSummary.refunds > 0 && (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  color="success"
-                  label={`Estornos: ${formatBRL(selectedSummary.refunds)}`}
-                />
-              )}
-            </Stack>
-          </Stack>
-        </Paper>
-      )}
-
-      {/* Main Charts Row */}
-      <Grid container spacing={{ xs: 2, sm: 2.5 }}>
+      {/* Row 2: Revenue Updates (8 cols) + Stacked Yearly Backup & Monthly Earnings (4 cols) */}
+      <Grid container spacing={3}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <DashboardCard
             title="Evolução Mensal Real"
-            subtitle="Entradas (renda), gastos reais (is_spending) e estornos — sem transferências internas nem pagamento de faturas"
+            subtitle="Entradas observadas vs. gastos reais — sem contagem dupla"
+            action={
+              <FormControl size="small" sx={{ minWidth: 132 }}>
+                <Select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  sx={{ fontSize: '0.8125rem', fontWeight: 500 }}
+                >
+                  {availableMonths.map((m) => (
+                    <MenuItem key={m} value={m}>
+                      {formatMonthLabel(m)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            }
           >
-            {chartMonths.length > 0 ? (
-              <Box sx={{ width: '100%', minHeight: 300 }}>
-                <Chart
-                  options={cashflowChartOptions}
-                  series={cashflowChartSeries}
-                  type="bar"
-                  height={300}
-                  width="100%"
-                />
+            <Grid container spacing={3} alignItems="center">
+              <Grid size={{ xs: 12, md: 8 }}>
+                {chartMonths.length > 0 ? (
+                  <Box sx={{ width: '100%', minHeight: 310 }}>
+                    <Chart
+                      options={cashflowChartOptions}
+                      series={cashflowChartSeries}
+                      type="bar"
+                      height={310}
+                      width="100%"
+                    />
+                  </Box>
+                ) : (
+                  <Typography color="text.secondary" py={8} textAlign="center">
+                    Sem dados mensais para exibir.
+                  </Typography>
+                )}
+              </Grid>
+
+              {/* Figma Revenue Updates Right KPI Column */}
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Stack spacing={3}>
+                  <Stack direction="row" spacing={1.75} alignItems="center">
+                    <Box
+                      sx={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: '8px',
+                        bgcolor: 'primary.light',
+                        color: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <IconLayoutGrid size={22} stroke={1.75} />
+                    </Box>
+                    <Box minWidth={0}>
+                      <Typography
+                        variant="h4"
+                        className="tabular-nums"
+                        sx={{ fontWeight: 700, lineHeight: 1.2 }}
+                        noWrap
+                      >
+                        {formatBRL(selectedSummary.netResult)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Resultado de {formatMonthLabel(selectedMonth)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack spacing={2.25}>
+                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                      <Box
+                        sx={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: '999px',
+                          bgcolor: 'primary.main',
+                          mt: 0.75,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Entradas no mês
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          className="tabular-nums"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          {formatBRL(selectedSummary.income)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                      <Box
+                        sx={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: '999px',
+                          bgcolor: 'secondary.main',
+                          mt: 0.75,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Gastos no mês
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          className="tabular-nums"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          {formatBRL(selectedSummary.spending)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Stack>
+
+                  <Button
+                    component={Link}
+                    href={`/movimentacoes?month=${selectedMonth}`}
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    size="large"
+                  >
+                    Ver extrato completo
+                  </Button>
+                </Stack>
+              </Grid>
+            </Grid>
+
+            {/* Transparent Neutral Exclusions Strip */}
+            {hasExclusions && (
+              <Box
+                sx={{
+                  mt: 3,
+                  pt: 2,
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
+              >
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                  Excluídos dos gastos em {formatMonthLabel(selectedMonth)}:
+                </Typography>
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                  {selectedSummary.transfers > 0 && (
+                    <StatusChip
+                      tone="neutral"
+                      label={`Transf. internas: ${formatBRL(selectedSummary.transfers)}`}
+                    />
+                  )}
+                  {selectedSummary.settlements > 0 && (
+                    <StatusChip
+                      tone="neutral"
+                      label={`Pag. faturas: ${formatBRL(selectedSummary.settlements)}`}
+                    />
+                  )}
+                  {selectedSummary.investmentApplied > 0 && (
+                    <StatusChip
+                      tone="info"
+                      label={`Aplic. invest.: ${formatBRL(selectedSummary.investmentApplied)}`}
+                    />
+                  )}
+                  {selectedSummary.investmentRedeemed > 0 && (
+                    <StatusChip
+                      tone="info"
+                      label={`Resgates: ${formatBRL(selectedSummary.investmentRedeemed)}`}
+                    />
+                  )}
+                  {selectedSummary.refunds > 0 && (
+                    <StatusChip
+                      tone="success"
+                      label={`Estornos: ${formatBRL(selectedSummary.refunds)}`}
+                    />
+                  )}
+                </Stack>
               </Box>
-            ) : (
-              <Typography color="textSecondary" py={6} textAlign="center">
-                Sem dados mensais para exibir.
-              </Typography>
             )}
           </DashboardCard>
         </Grid>
 
+        {/* Right Column: Two Stacked Medium Chart Cards (Figma 747:12453 + 747:12498) */}
         <Grid size={{ xs: 12, lg: 4 }}>
-          <DashboardCard
-            title="Gastos por Categoria"
-            subtitle={formatMonthLong(selectedMonth)}
-            action={
-              <Button
-                component={Link}
-                href={`/movimentacoes?month=${selectedMonth}&effect=spending`}
-                size="small"
+          <Stack spacing={3} height="100%">
+            {/* Card A: Yearly Backup style -> Distribuição de Gastos */}
+            <DashboardCard sx={{ flex: 1 }}>
+              <Stack
+                direction="row"
+                spacing={2}
+                alignItems="center"
+                justifyContent="space-between"
+                height="100%"
               >
-                Detalhes
-              </Button>
-            }
-          >
-            {donutData.length > 0 ? (
-              <Stack spacing={2}>
-                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                  <Chart
-                    options={donutOptions}
-                    series={donutData.map((d) => Number(d.amount.toFixed(2)))}
-                    type="donut"
-                    height={210}
-                    width="100%"
-                  />
-                </Box>
+                <Stack spacing={2} minWidth={0} flex={1}>
+                  <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                    Distribuição do Mês
+                  </Typography>
 
-                <Stack spacing={1.25}>
-                  {selectedCategories.slice(0, 6).map((cat, idx) => {
+                  <Box>
+                    <Typography
+                      variant="h4"
+                      className="tabular-nums"
+                      sx={{ fontWeight: 700, mb: 0.75 }}
+                    >
+                      {formatBRL(selectedSummary.spending)}
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Box
+                        sx={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '999px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor:
+                            spendingDeltaPct !== null && spendingDeltaPct > 0
+                              ? 'error.light'
+                              : 'success.light',
+                          color:
+                            spendingDeltaPct !== null && spendingDeltaPct > 0
+                              ? 'error.main'
+                              : 'success.main',
+                        }}
+                      >
+                        {spendingDeltaPct !== null && spendingDeltaPct > 0 ? (
+                          <IconArrowDownRight size={15} />
+                        ) : (
+                          <IconArrowUpLeft size={15} />
+                        )}
+                      </Box>
+                      <Typography variant="body2" fontWeight={600}>
+                        {spendingDeltaPct !== null
+                          ? `${spendingDeltaPct >= 0 ? '+' : ''}${spendingDeltaPct.toFixed(1)}%`
+                          : '—'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        vs mês ant.
+                      </Typography>
+                    </Stack>
+                  </Box>
+
+                  <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                    {donutData.slice(0, 2).map((d, i) => (
+                      <Stack key={d.category} direction="row" spacing={0.75} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 9,
+                            height: 9,
+                            borderRadius: '999px',
+                            bgcolor: i === 0 ? 'primary.main' : 'secondary.main',
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                          {d.category}
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Stack>
+
+                <Box sx={{ width: 124, height: 124, flexShrink: 0 }}>
+                  {donutData.length > 0 ? (
+                    <Chart
+                      options={compactDonutOptions}
+                      series={donutData.map((d) => Number(d.amount.toFixed(2)))}
+                      type="donut"
+                      width={124}
+                      height={124}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 124,
+                        height: 124,
+                        borderRadius: '999px',
+                        border: `12px solid ${theme.palette.divider}`,
+                      }}
+                    />
+                  )}
+                </Box>
+              </Stack>
+            </DashboardCard>
+
+            {/* Card B: Monthly Earnings style -> Recorrências Fixas with full-bleed wave */}
+            <Card
+              elevation={9}
+              sx={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                bgcolor: 'background.paper',
+                border: isDark ? `1px solid ${theme.palette.divider}` : 'none',
+              }}
+            >
+              <Box sx={{ p: { xs: 2.5, sm: 3.5 }, pb: 1.5 }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="flex-start"
+                  spacing={2}
+                >
+                  <Box>
+                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 1.25 }}>
+                      Recorrências Fixas
+                    </Typography>
+                    <Typography
+                      variant="h3"
+                      className="tabular-nums"
+                      sx={{ fontWeight: 700, mb: 0.75 }}
+                    >
+                      {formatBRL(selectedRecurring.amount)}
+                    </Typography>
+                    <Stack direction="row" spacing={0.75} alignItems="center">
+                      <Box
+                        sx={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '999px',
+                          bgcolor: 'secondary.light',
+                          color: 'secondary.main',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <IconArrowUpRight size={14} />
+                      </Box>
+                      <Typography variant="body2" fontWeight={600}>
+                        {selectedRecurring.charges}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        cobrança(s) no mês
+                      </Typography>
+                    </Stack>
+                  </Box>
+
+                  <Avatar
+                    sx={{
+                      width: 42,
+                      height: 42,
+                      bgcolor: 'secondary.main',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    <IconCurrencyDollar size={22} stroke={1.75} />
+                  </Avatar>
+                </Stack>
+              </Box>
+
+              <Box sx={{ width: '100%', height: 74, mt: 'auto' }}>
+                <Chart
+                  options={waveSparkOptions}
+                  series={[{ name: 'Recorrências', data: recurringSparkData }]}
+                  type="area"
+                  height={74}
+                  width="100%"
+                />
+              </Box>
+            </Card>
+          </Stack>
+        </Grid>
+      </Grid>
+
+      {/* Row 3: 3-Column Row matching Figma Modern Dashboard (Best Selling + Faturas + Weekly Stats) */}
+      <Grid container spacing={3}>
+        {/* Left: Best Selling Products Hero Card -> Gastos por Categoria (Figma 201:20674) */}
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <Card
+            elevation={9}
+            sx={{
+              height: '100%',
+              borderRadius: '12px',
+              bgcolor: 'primary.main',
+              color: '#FFFFFF',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              border: 'none',
+            }}
+          >
+            <Box sx={{ px: 3, pt: 3, pb: 1 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                <Box>
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 600, color: '#FFFFFF' }}
+                  >
+                    Gastos por Categoria
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'rgba(255,255,255,0.82)', mt: 0.25 }}
+                  >
+                    {formatMonthLong(selectedMonth)}
+                  </Typography>
+                </Box>
+                <Button
+                  component={Link}
+                  href={`/movimentacoes?month=${selectedMonth}&effect=spending`}
+                  size="small"
+                  sx={{
+                    color: '#FFFFFF',
+                    bgcolor: 'rgba(255,255,255,0.16)',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.26)' },
+                  }}
+                >
+                  Ver todos
+                </Button>
+              </Stack>
+            </Box>
+
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                px: 2,
+                my: -1.5,
+                position: 'relative',
+                zIndex: 0,
+              }}
+            >
+              <Box
+                component="img"
+                src="/images/banners/hero-analytics.png"
+                alt=""
+                sx={{
+                  width: '100%',
+                  maxWidth: 240,
+                  height: 148,
+                  objectFit: 'contain',
+                  display: 'block',
+                  pointerEvents: 'none',
+                }}
+              />
+            </Box>
+
+            {/* Floating White/Dark Sheet */}
+            <Box sx={{ p: 1.5, pt: 0, flexGrow: 1, display: 'flex' }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.25,
+                  borderRadius: '8px',
+                  bgcolor: 'background.paper',
+                  color: 'text.primary',
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: 2,
+                }}
+              >
+                {selectedCategories.length > 0 ? (
+                  selectedCategories.slice(0, 4).map((cat, idx) => {
                     const pct =
                       selectedSummary.spending > 0
                         ? (cat.amount / selectedSummary.spending) * 100
                         : 0;
+                    const barColor = CHART_PALETTE[idx % CHART_PALETTE.length];
+                    const toneOrder: SoftTone[] = ['primary', 'secondary', 'success', 'warning'];
                     return (
                       <Box key={cat.category}>
                         <Stack
                           direction="row"
                           justifyContent="space-between"
                           alignItems="center"
-                          mb={0.4}
+                          spacing={1}
+                          mb={0.85}
                         >
-                          <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-                            <Box
-                              sx={{
-                                width: 9,
-                                height: 9,
-                                borderRadius: '50%',
-                                bgcolor: CHART_PALETTE[idx % CHART_PALETTE.length],
-                                flexShrink: 0,
-                              }}
-                            />
-                            <Typography variant="body2" fontWeight={600} noWrap>
+                          <Box minWidth={0}>
+                            <Typography
+                              variant="subtitle2"
+                              fontWeight={600}
+                              noWrap
+                            >
                               {cat.category}
                             </Typography>
-                          </Stack>
-                          <Typography variant="body2" fontWeight={700} flexShrink={0}>
-                            {formatBRL(cat.amount)}{' '}
                             <Typography
-                              component="span"
                               variant="caption"
-                              color="textSecondary"
+                              color="text.secondary"
+                              className="tabular-nums"
                             >
-                              ({pct.toFixed(0)}%)
+                              {formatBRL(cat.amount)}
                             </Typography>
-                          </Typography>
+                          </Box>
+                          <StatusChip
+                            tone={toneOrder[idx % toneOrder.length]}
+                            label={`${pct.toFixed(0)}%`}
+                          />
                         </Stack>
                         <LinearProgress
                           variant="determinate"
                           value={Math.min(100, pct)}
                           sx={{
                             height: 6,
-                            borderRadius: 3,
-                            bgcolor: theme.palette.action.hover,
+                            bgcolor: isDark
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(93,135,255,0.1)',
                             '& .MuiLinearProgress-bar': {
-                              borderRadius: 3,
-                              bgcolor: CHART_PALETTE[idx % CHART_PALETTE.length],
+                              bgcolor: barColor,
                             },
                           }}
                         />
                       </Box>
                     );
-                  })}
-                </Stack>
-              </Stack>
-            ) : (
-              <Typography color="textSecondary" py={6} textAlign="center">
-                Nenhum gasto registrado em {formatMonthLabel(selectedMonth)}.
-              </Typography>
-            )}
-          </DashboardCard>
-        </Grid>
-      </Grid>
-
-      {/* Bottom Row: Recent Transactions + Bills & Pluggy Health */}
-      <Grid container spacing={{ xs: 2, sm: 2.5 }}>
-        <Grid size={{ xs: 12, lg: 7 }}>
-          <DashboardCard
-            title="Últimas Movimentações"
-            subtitle="Registros recentes consolidados em financial_transactions"
-            action={
-              <Button component={Link} href="/movimentacoes" size="small">
-                Ver todas
-              </Button>
-            }
-          >
-            <Stack divider={<Divider flexItem />} spacing={1.25}>
-              {recentTransactions.map((tx) => {
-                const isCredit = tx.direction === 'credit';
-                return (
-                  <Stack
-                    key={tx.id}
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    spacing={1.5}
-                    sx={{ py: 0.5 }}
+                  })
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    textAlign="center"
+                    py={4}
                   >
-                    <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
-                      <Avatar
-                        sx={{
-                          width: 36,
-                          height: 36,
-                          bgcolor: isCredit
-                            ? isDark
-                              ? 'rgba(19,222,185,0.16)'
-                              : '#E6FFFA'
-                            : tx.is_own_transfer
-                              ? isDark
-                                ? 'rgba(73,190,255,0.16)'
-                                : '#E8F7FF'
-                              : isDark
-                                ? 'rgba(250,137,107,0.16)'
-                                : '#FDEDE8',
-                          color: isCredit
-                            ? 'success.main'
-                            : tx.is_own_transfer
-                              ? 'secondary.main'
-                              : 'error.main',
-                        }}
-                      >
-                        {isCredit ? (
-                          <IconArrowUpRight size={18} />
-                        ) : (
-                          <IconArrowDownRight size={18} />
-                        )}
-                      </Avatar>
-                      <Box minWidth={0}>
-                        <Typography variant="subtitle2" fontWeight={600} noWrap>
-                          {tx.raw_description}
-                        </Typography>
-                        <Stack
-                          direction="row"
-                          spacing={0.75}
-                          alignItems="center"
-                          flexWrap="wrap"
-                          useFlexGap
-                        >
-                          <Typography variant="caption" color="textSecondary">
-                            {formatDateBR(tx.occurred_on)}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            •
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary" noWrap>
-                            {tx.accountName}
-                          </Typography>
-                          {tx.categoryName ? (
-                            <Chip
-                              label={tx.categoryName}
-                              size="small"
-                              sx={{ height: 18, fontSize: '0.68rem' }}
-                            />
-                          ) : (
-                            <Chip
-                              label={
-                                ECONOMIC_EFFECT_LABELS[tx.economic_effect] ??
-                                tx.economic_effect
-                              }
-                              size="small"
-                              variant="outlined"
-                              sx={{ height: 18, fontSize: '0.68rem' }}
-                            />
-                          )}
-                        </Stack>
-                      </Box>
-                    </Stack>
+                    Nenhum gasto registrado em {formatMonthLabel(selectedMonth)}.
+                  </Typography>
+                )}
+              </Paper>
+            </Box>
+          </Card>
+        </Grid>
 
-                    <Typography
-                      variant="subtitle2"
-                      fontWeight={700}
-                      flexShrink={0}
-                      color={
-                        isCredit
-                          ? 'success.main'
-                          : tx.is_own_transfer
-                            ? 'text.secondary'
-                            : 'text.primary'
-                      }
+        {/* Middle: Mini Metrics + Faturas Recentes */}
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <Stack spacing={3} height="100%">
+            <Grid container spacing={2.5}>
+              <Grid size={{ xs: 6 }}>
+                <DashboardCard sx={{ p: 0 }}>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>
+                    Faturas recentes
+                  </Typography>
+                  <Typography
+                    variant="h4"
+                    className="tabular-nums"
+                    fontWeight={700}
+                    noWrap
+                  >
+                    {formatCompactBRL(totalLatestBills)}
+                  </Typography>
+                  <Stack direction="row" spacing={0.5} alignItems="center" mt={1}>
+                    <Box
+                      sx={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: '999px',
+                        bgcolor: 'primary.light',
+                        color: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
                     >
-                      {isCredit ? '+' : '-'} {formatBRL(tx.amount)}
+                      <IconCreditCard size={13} />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {latestBills.length} registrada(s)
                     </Typography>
                   </Stack>
-                );
-              })}
-            </Stack>
-          </DashboardCard>
-        </Grid>
+                </DashboardCard>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
+                <DashboardCard sx={{ p: 0 }}>
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>
+                    Parcelamentos
+                  </Typography>
+                  <Typography variant="h4" className="tabular-nums" fontWeight={700}>
+                    {activeInstallmentsCount}
+                  </Typography>
+                  <Stack direction="row" spacing={0.5} alignItems="center" mt={1}>
+                    <Box
+                      sx={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: '999px',
+                        bgcolor: 'success.light',
+                        color: 'success.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <IconArrowUpRight size={13} />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      ativos agora
+                    </Typography>
+                  </Stack>
+                </DashboardCard>
+              </Grid>
+            </Grid>
 
-        <Grid size={{ xs: 12, lg: 5 }}>
-          <Stack spacing={2.5} height="100%">
             <DashboardCard
-              title="Faturas Recentes"
-              subtitle={`${activeInstallmentsCount} compromisso(s) parcelado(s) ativos`}
+              title="Faturas de Cartão"
+              subtitle="Próximos e últimos vencimentos"
               action={
                 <Button component={Link} href="/contas" size="small">
-                  Contas
+                  Ver contas
                 </Button>
               }
+              sx={{ flexGrow: 1 }}
             >
-              <Stack spacing={1.5}>
+              <Stack spacing={2}>
                 {latestBills.slice(0, 4).map((bill) => (
                   <Stack
                     key={bill.id}
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
-                    spacing={1}
+                    spacing={1.5}
                   >
-                    <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
-                      <Avatar
-                        variant="rounded"
+                    <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                      <Box
                         sx={{
-                          width: 34,
-                          height: 34,
-                          bgcolor: isDark ? 'rgba(93,135,255,0.16)' : '#ECF2FF',
+                          width: 40,
+                          height: 40,
+                          borderRadius: '8px',
+                          bgcolor: 'primary.light',
                           color: 'primary.main',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
                         }}
                       >
-                        <IconCreditCard size={18} />
-                      </Avatar>
+                        <IconCreditCard size={20} stroke={1.65} />
+                      </Box>
                       <Box minWidth={0}>
                         <Typography variant="subtitle2" fontWeight={600} noWrap>
                           {bill.accountLabel}
                         </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          Vencimento: {formatDateBR(bill.due_date)}
+                        <Typography variant="caption" color="text.secondary">
+                          Venc. {formatDateBR(bill.due_date)}
                         </Typography>
                       </Box>
                     </Stack>
-                    <Typography variant="subtitle2" fontWeight={700} flexShrink={0}>
+                    <Typography
+                      variant="subtitle2"
+                      className="tabular-nums"
+                      fontWeight={700}
+                      flexShrink={0}
+                    >
                       {formatBRL(bill.total_amount)}
                     </Typography>
                   </Stack>
                 ))}
+                {latestBills.length === 0 && (
+                  <Typography variant="body2" color="text.secondary" py={3} textAlign="center">
+                    Nenhuma fatura registrada.
+                  </Typography>
+                )}
               </Stack>
             </DashboardCard>
+          </Stack>
+        </Grid>
 
-            <DashboardCard
-              title="Sincronização Open Finance"
-              subtitle="Conexões Pluggy com rotina diária"
-              action={
-                <Button component={Link} href="/sincronizacao" size="small">
-                  Monitorar
-                </Button>
-              }
-            >
-              <Stack spacing={1.25}>
-                {connections.map((conn) => (
+        {/* Right: Weekly Stats style -> Sincronização Open Finance (Figma 201:20676) */}
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <DashboardCard
+            title="Sincronização Open Finance"
+            subtitle="Conexões Pluggy com rotina diária"
+            action={
+              <Button component={Link} href="/sincronizacao" size="small">
+                Monitorar
+              </Button>
+            }
+          >
+            <Stack spacing={2.25}>
+              {connections.map((conn, index) => {
+                const isOk = conn.status === 'UPDATED';
+                const tileTone = isOk
+                  ? index % 2 === 0
+                    ? { bg: 'primary.light', fg: 'primary.main' }
+                    : { bg: 'success.light', fg: 'success.main' }
+                  : { bg: 'warning.light', fg: 'warning.main' };
+
+                return (
                   <Stack
                     key={conn.id}
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
-                    spacing={1}
+                    spacing={1.5}
                   >
-                    <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
-                      <Avatar
-                        variant="rounded"
+                    <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                      <Box
                         sx={{
-                          width: 32,
-                          height: 32,
-                          bgcolor: isDark ? 'rgba(19,222,185,0.16)' : '#E6FFFA',
-                          color: 'success.main',
+                          width: 40,
+                          height: 40,
+                          borderRadius: '8px',
+                          bgcolor: tileTone.bg,
+                          color: tileTone.fg,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
                         }}
                       >
-                        <IconBuildingBank size={17} />
-                      </Avatar>
+                        <IconBuildingBank size={20} stroke={1.65} />
+                      </Box>
                       <Box minWidth={0}>
                         <Typography variant="subtitle2" fontWeight={600} noWrap>
                           {conn.institution_name}
                         </Typography>
-                        <Typography variant="caption" color="textSecondary">
+                        <Typography variant="caption" color="text.secondary" noWrap display="block">
                           <IconRefresh
                             size={11}
                             style={{ verticalAlign: 'middle', marginRight: 4 }}
@@ -986,20 +1311,152 @@ export default function OverviewDashboard({
                         </Typography>
                       </Box>
                     </Stack>
-                    <Chip
+                    <StatusChip
+                      tone={isOk ? 'success' : 'warning'}
                       label={conn.status}
-                      size="small"
-                      color={conn.status === 'UPDATED' ? 'success' : 'warning'}
-                      variant="outlined"
-                      sx={{ fontWeight: 600, fontSize: '0.7rem' }}
                     />
                   </Stack>
-                ))}
-              </Stack>
-            </DashboardCard>
-          </Stack>
+                );
+              })}
+              {connections.length === 0 && (
+                <Typography variant="body2" color="text.secondary" py={4} textAlign="center">
+                  Nenhuma conexão Pluggy ativa.
+                </Typography>
+              )}
+            </Stack>
+          </DashboardCard>
         </Grid>
       </Grid>
+
+      {/* Row 4: Top Projects Table style -> Últimas Movimentações (Figma 201:20677) */}
+      <DashboardCard
+        title="Últimas Movimentações"
+        subtitle="Registros recentes consolidados no ledger local"
+        action={
+          <Button
+            component={Link}
+            href="/movimentacoes"
+            size="small"
+            variant="outlined"
+          >
+            Ver todas
+          </Button>
+        }
+        noPadding
+      >
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ pl: { xs: 2.5, sm: 3.5 } }}>Movimentação</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Data</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Categoria / Efeito</TableCell>
+                <TableCell align="right" sx={{ pr: { xs: 2.5, sm: 3.5 } }}>
+                  Valor
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {recentTransactions.map((tx) => {
+                const isCredit = tx.direction === 'credit';
+                const badgeTone: SoftTone = isCredit
+                  ? 'success'
+                  : tx.is_own_transfer
+                    ? 'secondary'
+                    : tx.categoryName
+                      ? 'primary'
+                      : 'warning';
+
+                return (
+                  <TableRow key={tx.id} hover>
+                    <TableCell sx={{ pl: { xs: 2.5, sm: 3.5 }, maxWidth: 360 }}>
+                      <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                        <Avatar
+                          sx={{
+                            width: 38,
+                            height: 38,
+                            bgcolor: isCredit
+                              ? 'success.light'
+                              : tx.is_own_transfer
+                                ? 'secondary.light'
+                                : 'error.light',
+                            color: isCredit
+                              ? 'success.main'
+                              : tx.is_own_transfer
+                                ? 'secondary.main'
+                                : 'error.main',
+                          }}
+                        >
+                          {isCredit ? (
+                            <IconArrowUpRight size={18} />
+                          ) : (
+                            <IconArrowDownRight size={18} />
+                          )}
+                        </Avatar>
+                        <Box minWidth={0}>
+                          <Typography variant="subtitle2" fontWeight={600} noWrap>
+                            {tx.raw_description}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap display="block">
+                            {tx.accountName}
+                            <Box
+                              component="span"
+                              sx={{ display: { xs: 'inline', sm: 'none' } }}
+                            >
+                              {' '}• {formatDateBR(tx.occurred_on)}
+                            </Box>
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </TableCell>
+
+                    <TableCell
+                      sx={{
+                        display: { xs: 'none', sm: 'table-cell' },
+                        whiteSpace: 'nowrap',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {formatDateBR(tx.occurred_on)}
+                    </TableCell>
+
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                      <StatusChip
+                        tone={badgeTone}
+                        label={
+                          tx.categoryName ??
+                          ECONOMIC_EFFECT_LABELS[tx.economic_effect] ??
+                          tx.economic_effect
+                        }
+                      />
+                    </TableCell>
+
+                    <TableCell
+                      align="right"
+                      sx={{ pr: { xs: 2.5, sm: 3.5 }, whiteSpace: 'nowrap' }}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        className="tabular-nums"
+                        fontWeight={700}
+                        color={
+                          isCredit
+                            ? 'success.main'
+                            : tx.is_own_transfer
+                              ? 'text.secondary'
+                              : 'text.primary'
+                        }
+                      >
+                        {isCredit ? '+' : '-'} {formatBRL(tx.amount)}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DashboardCard>
     </Stack>
   );
 }

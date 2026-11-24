@@ -6,13 +6,13 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  IconButton,
   Paper,
   Snackbar,
   Stack,
@@ -27,6 +27,7 @@ import {
   IconSparkles,
   IconX,
 } from '@tabler/icons-react';
+import StatusChip, { type SoftTone } from '@/app/components/shared/StatusChip';
 import { formatBRL, formatDateBR } from '@/lib/format';
 import {
   runPluggyReconcileAction,
@@ -42,16 +43,16 @@ interface ReconcileTriggerCardProps {
 
 const ACTION_META: Record<
   ReconcilePreviewItem['action'],
-  { label: string; color: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'info' }
+  { label: string; tone: SoftTone }
 > = {
-  link_existing: { label: 'Vincular existente', color: 'info' },
-  hold_reconciliation_review: { label: 'Revisão reconcil.', color: 'warning' },
-  import_non_spending: { label: 'Não-gasto (auto)', color: 'default' },
-  import_classified_rule: { label: 'Regra (auto)', color: 'success' },
-  import_classified_history: { label: 'Histórico (auto)', color: 'success' },
-  import_classified_pluggy_map: { label: 'Pluggy map (auto)', color: 'success' },
-  import_classified_ai: { label: 'IA ≥85% (auto)', color: 'primary' },
-  import_needs_classification_review: { label: 'Revisar categoria', color: 'warning' },
+  link_existing: { label: 'Vincular existente', tone: 'info' },
+  hold_reconciliation_review: { label: 'Revisão reconcil.', tone: 'warning' },
+  import_non_spending: { label: 'Não-gasto (auto)', tone: 'neutral' },
+  import_classified_rule: { label: 'Regra (auto)', tone: 'success' },
+  import_classified_history: { label: 'Histórico (auto)', tone: 'success' },
+  import_classified_pluggy_map: { label: 'Pluggy map (auto)', tone: 'success' },
+  import_classified_ai: { label: 'IA ≥85% (auto)', tone: 'primary' },
+  import_needs_classification_review: { label: 'Revisar categoria', tone: 'warning' },
 };
 
 export default function ReconcileTriggerCard({
@@ -122,20 +123,21 @@ export default function ReconcileTriggerCard({
   return (
     <>
       <Paper
-        elevation={0}
+        elevation={unlinkedPostedCount > 0 ? 0 : 9}
         sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderRadius: 2.5,
-          border: `1px solid ${
+          p: { xs: 2.5, sm: 3 },
+          borderRadius: '12px',
+          border:
             unlinkedPostedCount > 0
-              ? theme.palette.primary.main
-              : theme.palette.divider
-          }`,
+              ? `1px solid rgba(93, 135, 255, 0.35)`
+              : isDark
+                ? `1px solid ${theme.palette.divider}`
+                : 'none',
           bgcolor:
             unlinkedPostedCount > 0
               ? isDark
-                ? 'rgba(93, 135, 255, 0.1)'
-                : '#F3F7FF'
+                ? 'rgba(93, 135, 255, 0.14)'
+                : 'rgba(93, 135, 255, 0.08)'
               : 'background.paper',
         }}
       >
@@ -145,65 +147,63 @@ export default function ReconcileTriggerCard({
           alignItems={{ xs: 'flex-start', md: 'center' }}
           spacing={2}
         >
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack direction="row" spacing={1.75} alignItems="center">
             <Box
               sx={{
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
                 borderRadius: '10px',
                 bgcolor: 'primary.main',
-                color: '#fff',
+                color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}
             >
-              <IconSparkles size={21} />
+              <IconSparkles size={22} stroke={1.75} />
             </Box>
             <Box>
-              <Typography variant="subtitle1" fontWeight={700}>
+              <Typography variant="h6" fontWeight={600}>
                 {unlinkedPostedCount > 0
                   ? `${unlinkedPostedCount} movimentação(ões) do Open Finance prontas para conciliar`
                   : 'Open Finance em dia com o ledger'}
               </Typography>
-              <Typography variant="caption" color="textSecondary" display="block">
-                Aplica regras + histórico + mapeamento Pluggy e aciona a IA (OpenRouter) só nos casos residuais.{' '}
+              <Typography variant="body2" color="text.secondary" display="block">
+                Aplica regras + histórico + mapeamento Pluggy e aciona a IA apenas nos casos residuais.{' '}
                 {unlinkedPendingCount > 0
-                  ? `(${unlinkedPendingCount} PENDING seguem retidos aguardando confirmação do banco.)`
+                  ? `(${unlinkedPendingCount} pendente(s) aguardando confirmação bancária.)`
                   : ''}
               </Typography>
             </Box>
           </Stack>
 
-          <Stack direction="row" spacing={1} flexShrink={0} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={1.25} flexShrink={0} flexWrap="wrap" useFlexGap>
             <Button
               variant="outlined"
-              size="small"
+              size="medium"
               disabled={isPending || unlinkedPostedCount === 0}
               onClick={() => handleRun('preview')}
               startIcon={
                 isPending && runningMode === 'preview' ? (
                   <CircularProgress size={15} color="inherit" />
                 ) : (
-                  <IconEye size={16} />
+                  <IconEye size={17} />
                 )
               }
             >
-              {isPending && runningMode === 'preview'
-                ? 'Simulando...'
-                : 'Simular (Preview)'}
+              {isPending && runningMode === 'preview' ? 'Simulando...' : 'Simular'}
             </Button>
             <Button
               variant="contained"
-              size="small"
+              size="medium"
               disabled={isPending || unlinkedPostedCount === 0}
               onClick={() => handleRun('apply')}
               startIcon={
                 isPending && runningMode === 'apply' ? (
                   <CircularProgress size={15} color="inherit" />
                 ) : (
-                  <IconSparkles size={16} />
+                  <IconSparkles size={17} />
                 )
               }
             >
@@ -232,21 +232,16 @@ export default function ReconcileTriggerCard({
                   : `Conciliação concluída${result?.run_id ? ` — Run #${result.run_id}` : ''}`}
               </Typography>
               {result && (
-                <Typography variant="caption" color="textSecondary">
+                <Typography variant="caption" color="text.secondary">
                   Modelo IA: {result.model} • Limiar automático:{' '}
                   {Math.round(result.confidence_threshold * 100)}% •{' '}
                   {result.summary.ai_items_evaluated} item(ns) avaliados pela IA
                 </Typography>
               )}
             </Box>
-            <Button
-              size="small"
-              color="inherit"
-              onClick={() => setDialogOpen(false)}
-              sx={{ minWidth: 32 }}
-            >
+            <IconButton size="small" onClick={() => setDialogOpen(false)}>
               <IconX size={18} />
-            </Button>
+            </IconButton>
           </Stack>
         </DialogTitle>
 
@@ -254,50 +249,42 @@ export default function ReconcileTriggerCard({
           {result && (
             <Stack spacing={2}>
               {result.warning && (
-                <Alert severity="warning" variant="outlined">
-                  {result.warning}
-                </Alert>
+                <Alert severity="warning">{result.warning}</Alert>
               )}
 
-              {/* Summary Chips */}
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip
+                <StatusChip
+                  tone="neutral"
                   label={`Analisadas: ${result.summary.total_unlinked_posted}`}
-                  size="small"
-                  variant="outlined"
                 />
                 {result.summary.linked_existing > 0 && (
-                  <Chip
+                  <StatusChip
+                    tone="info"
                     label={`Vinculadas: ${result.summary.linked_existing}`}
-                    size="small"
-                    color="info"
                   />
                 )}
-                <Chip
+                <StatusChip
+                  tone="success"
                   label={`Regras/Hist./Pluggy: ${
                     result.summary.classified_by_rule +
                     result.summary.classified_by_history +
                     result.summary.classified_by_pluggy_map
                   }`}
-                  size="small"
-                  color="success"
                 />
-                <Chip
+                <StatusChip
+                  tone="neutral"
                   label={`Não-gastos: ${result.summary.imported_non_spending}`}
-                  size="small"
                 />
-                <Chip
+                <StatusChip
+                  tone="primary"
                   label={`Auto IA (≥85%): ${result.summary.classified_by_ai}`}
-                  size="small"
-                  color="primary"
                 />
-                <Chip
+                <StatusChip
+                  tone="warning"
                   label={`Para revisão: ${
                     result.summary.sent_to_classification_review +
                     result.summary.held_for_reconciliation_review
                   }`}
-                  size="small"
-                  color="warning"
                 />
               </Stack>
 
@@ -323,7 +310,7 @@ export default function ReconcileTriggerCard({
               </Tabs>
 
               {filteredItems.length === 0 ? (
-                <Typography color="textSecondary" py={3} textAlign="center">
+                <Typography color="text.secondary" py={3} textAlign="center">
                   Nenhum item nesta aba.
                 </Typography>
               ) : (
@@ -346,39 +333,29 @@ export default function ReconcileTriggerCard({
                             alignItems="center"
                             flexWrap="wrap"
                             useFlexGap
-                            mb={0.35}
+                            mb={0.5}
                           >
-                            <Chip
-                              label={meta.label}
-                              size="small"
-                              color={meta.color}
-                              sx={{ height: 20, fontSize: '0.68rem' }}
-                            />
+                            <StatusChip tone={meta.tone} label={meta.label} />
                             {item.category_name && (
-                              <Chip
-                                label={item.category_name}
-                                size="small"
-                                variant="outlined"
-                                color="primary"
-                                sx={{ height: 20, fontSize: '0.68rem' }}
-                              />
+                              <StatusChip tone="primary" label={item.category_name} />
                             )}
                             {item.confidence !== null && (
-                              <Typography variant="caption" color="textSecondary">
+                              <Typography variant="caption" color="text.secondary" fontWeight={600}>
                                 {Math.round(item.confidence * 100)}%
                               </Typography>
                             )}
                           </Stack>
-                          <Typography variant="subtitle2" fontWeight={700}>
+                          <Typography variant="subtitle2" fontWeight={600}>
                             {item.description}
                           </Typography>
-                          <Typography variant="caption" color="textSecondary" display="block">
+                          <Typography variant="caption" color="text.secondary" display="block">
                             {formatDateBR(item.occurred_on)} • {item.account_name} —{' '}
                             {item.rationale}
                           </Typography>
                         </Box>
                         <Typography
                           variant="subtitle2"
+                          className="tabular-nums"
                           fontWeight={700}
                           flexShrink={0}
                           color={

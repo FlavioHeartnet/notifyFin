@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import NextTopLoader from 'nextjs-toploader';
 import { CustomizerContextProvider } from '@/app/context/customizerContext';
+import { plus } from '@/utils/theme/Typography';
 import MyApp from './app';
 import './global.css';
 
@@ -18,7 +19,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#5D87FF' },
-    { media: '(prefers-color-scheme: dark)', color: '#171c23' },
+    { media: '(prefers-color-scheme: dark)', color: '#202938' },
   ],
 };
 
@@ -28,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" className={plus.className} suppressHydrationWarning>
       <body>
         <NextTopLoader color="#5D87FF" showSpinner={false} />
         <CustomizerContextProvider>

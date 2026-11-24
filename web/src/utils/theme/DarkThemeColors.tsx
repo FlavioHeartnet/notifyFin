@@ -4,20 +4,20 @@ const DarkThemeColors = [
     palette: {
       primary: {
         main: '#5D87FF',
-        light: '#253662',
+        light: 'rgba(93, 135, 255, 0.16)',
         dark: '#4570EA',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
       secondary: {
         main: '#49BEFF',
-        light: '#1C455D',
-        dark: '#23afdb',
-        contrastText: '#ffffff',
+        light: 'rgba(73, 190, 255, 0.15)',
+        dark: '#23AFDB',
+        contrastText: '#FFFFFF',
       },
       background: {
-        default: '#2A3447',
-        dark: '#2A3547',
-        paper: '#2A3447',
+        default: '#202938',
+        dark: '#202938',
+        paper: '#2A3547',
       },
     },
   },
@@ -26,15 +26,15 @@ const DarkThemeColors = [
     palette: {
       primary: {
         main: '#0074BA',
-        light: '#103247',
+        light: 'rgba(0, 116, 186, 0.18)',
         dark: '#006DAF',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
       secondary: {
         main: '#47D7BC',
-        light: '#0C4339',
+        light: 'rgba(71, 215, 188, 0.16)',
         dark: '#39C7AD',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
     },
   },
@@ -43,15 +43,15 @@ const DarkThemeColors = [
     palette: {
       primary: {
         main: '#763EBD',
-        light: '#26153C',
+        light: 'rgba(118, 62, 189, 0.2)',
         dark: '#6E35B7',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
       secondary: {
         main: '#95CFD5',
-        light: '#09454B',
+        light: 'rgba(149, 207, 213, 0.16)',
         dark: '#8BC8CE',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
     },
   },
@@ -60,15 +60,15 @@ const DarkThemeColors = [
     palette: {
       primary: {
         main: '#0A7EA4',
-        light: '#05313F',
+        light: 'rgba(10, 126, 164, 0.2)',
         dark: '#06769A',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
       secondary: {
         main: '#CCDA4E',
-        light: '#282917',
+        light: 'rgba(204, 218, 78, 0.16)',
         dark: '#C3D046',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
     },
   },
@@ -77,15 +77,15 @@ const DarkThemeColors = [
     palette: {
       primary: {
         main: '#01C0C8',
-        light: '#003638',
+        light: 'rgba(1, 192, 200, 0.18)',
         dark: '#00B9C0',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
       secondary: {
         main: '#FB9678',
-        light: '#40241C',
+        light: 'rgba(251, 150, 120, 0.18)',
         dark: '#F48B6C',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
     },
   },
@@ -94,15 +94,15 @@ const DarkThemeColors = [
     palette: {
       primary: {
         main: '#FA896B',
-        light: '#402E32',
+        light: 'rgba(250, 137, 107, 0.18)',
         dark: '#F48162',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
       secondary: {
         main: '#0074BA',
-        light: '#082E45',
+        light: 'rgba(0, 116, 186, 0.18)',
         dark: '#006FB1',
-        contrastText: '#ffffff',
+        contrastText: '#FFFFFF',
       },
     },
   },

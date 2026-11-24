@@ -3,7 +3,6 @@ import React, { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
-  Avatar,
   Box,
   Button,
   Chip,
@@ -24,6 +23,8 @@ import {
   IconHomeDollar,
 } from '@tabler/icons-react';
 import DashboardCard from '@/app/components/shared/DashboardCard';
+import PageBanner from '@/app/components/shared/PageBanner';
+import StatusChip from '@/app/components/shared/StatusChip';
 import {
   ACCOUNT_TYPE_LABELS,
   CHART_PALETTE,
@@ -101,7 +102,6 @@ export default function AccountsClient({
     [bills, selectedCard]
   );
 
-  // Aggregate bills by due_date month for chart
   const billsByMonth = useMemo(() => {
     const map = new Map<string, number>();
     filteredBills.forEach((b) => {
@@ -123,12 +123,14 @@ export default function AccountsClient({
       },
       colors: [CHART_PALETTE[0]],
       plotOptions: {
-        bar: { borderRadius: 6, columnWidth: '52%' },
+        bar: { borderRadius: 6, columnWidth: '46%', borderRadiusApplication: 'end' },
       },
       dataLabels: { enabled: false },
       grid: { borderColor: theme.palette.divider, strokeDashArray: 4 },
       xaxis: {
         categories: billsByMonth.map(([m]) => formatMonthLabel(m)),
+        axisBorder: { show: false },
+        axisTicks: { show: false },
       },
       yaxis: {
         labels: { formatter: (v: number) => formatCompactBRL(v) },
@@ -142,16 +144,25 @@ export default function AccountsClient({
   );
 
   const getAccountIcon = (type: string) => {
-    if (type === 'credit_card') return <IconCreditCard size={20} />;
-    if (type === 'loan') return <IconHomeDollar size={20} />;
-    return <IconBuildingBank size={20} />;
+    if (type === 'credit_card') return <IconCreditCard size={22} stroke={1.65} />;
+    if (type === 'loan') return <IconHomeDollar size={22} stroke={1.65} />;
+    return <IconBuildingBank size={22} stroke={1.65} />;
   };
 
   const activeInstallments = installments.filter((i) => i.status === 'active');
   const completedInstallments = installments.filter((i) => i.status !== 'active');
 
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={3}>
+      <PageBanner
+        title="Contas & Faturas"
+        subtitle="Contas monitoradas, faturas de cartão e compromissos parcelados"
+        breadcrumbs={[
+          { label: 'Início', href: '/' },
+          { label: 'Contas & Faturas' },
+        ]}
+      />
+
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs
           value={tab}
@@ -167,131 +178,156 @@ export default function AccountsClient({
 
       {/* TAB 0: Contas monitoradas */}
       {tab === 0 && (
-        <Grid container spacing={2}>
-          {accounts.map((acc) => (
-            <Grid key={acc.id} size={{ xs: 12, sm: 6, lg: 4 }}>
-              <DashboardCard>
-                <Stack spacing={2} height="100%" justifyContent="space-between">
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Avatar
-                      variant="rounded"
-                      sx={{
-                        width: 44,
-                        height: 44,
-                        bgcolor:
-                          acc.account_type === 'credit_card'
-                            ? isDark
-                              ? 'rgba(93,135,255,0.16)'
-                              : '#ECF2FF'
-                            : acc.account_type === 'loan'
-                              ? isDark
-                                ? 'rgba(255,174,31,0.16)'
-                                : '#FEF5E5'
-                              : isDark
-                                ? 'rgba(19,222,185,0.16)'
-                                : '#E6FFFA',
-                        color:
-                          acc.account_type === 'credit_card'
-                            ? 'primary.main'
-                            : acc.account_type === 'loan'
-                              ? 'warning.main'
-                              : 'success.main',
-                      }}
-                    >
-                      {getAccountIcon(acc.account_type)}
-                    </Avatar>
-                    <Box minWidth={0} flexGrow={1}>
-                      <Typography variant="subtitle1" fontWeight={700} noWrap>
-                        {acc.name}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary" display="block">
-                        {acc.institutionName}
-                        {acc.external_reference_masked
-                          ? ` • ${acc.external_reference_masked}`
-                          : ''}
-                      </Typography>
-                    </Box>
-                  </Stack>
+        <Grid container spacing={2.5}>
+          {accounts.map((acc) => {
+            const tileBg =
+              acc.account_type === 'credit_card'
+                ? 'primary.light'
+                : acc.account_type === 'loan'
+                  ? 'warning.light'
+                  : 'success.light';
+            const tileColor =
+              acc.account_type === 'credit_card'
+                ? 'primary.main'
+                : acc.account_type === 'loan'
+                  ? 'warning.main'
+                  : 'success.main';
 
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip
-                      label={
-                        ACCOUNT_TYPE_LABELS[acc.account_type] ?? acc.account_type
-                      }
-                      size="small"
-                      variant="outlined"
-                    />
-                    <Chip
-                      label={`${acc.txCount.toLocaleString('pt-BR')} lançamentos`}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Stack>
+            return (
+              <Grid key={acc.id} size={{ xs: 12, sm: 6, lg: 4 }}>
+                <DashboardCard>
+                  <Stack spacing={2.25} height="100%" justifyContent="space-between">
+                    <Stack direction="row" spacing={1.75} alignItems="center">
+                      <Box
+                        sx={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: '10px',
+                          bgcolor: tileBg,
+                          color: tileColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {getAccountIcon(acc.account_type)}
+                      </Box>
+                      <Box minWidth={0} flexGrow={1}>
+                        <Typography variant="h6" fontWeight={600} noWrap>
+                          {acc.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {acc.institutionName}
+                          {acc.external_reference_masked
+                            ? ` • ${acc.external_reference_masked}`
+                            : ''}
+                        </Typography>
+                      </Box>
+                    </Stack>
 
-                  <Divider />
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <StatusChip
+                        tone="neutral"
+                        label={
+                          ACCOUNT_TYPE_LABELS[acc.account_type] ?? acc.account_type
+                        }
+                      />
+                      <StatusChip
+                        tone="primary"
+                        label={`${acc.txCount.toLocaleString('pt-BR')} lançamentos`}
+                      />
+                    </Stack>
 
-                  <Grid container spacing={1}>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="textSecondary">
-                        Gastos acumulados
-                      </Typography>
-                      <Typography variant="subtitle2" fontWeight={700}>
-                        {formatBRL(acc.totalDebits)}
-                      </Typography>
+                    <Divider />
+
+                    <Grid container spacing={1.5}>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Gastos acumulados
+                        </Typography>
+                        <Typography variant="subtitle1" className="tabular-nums" fontWeight={700}>
+                          {formatBRL(acc.totalDebits)}
+                        </Typography>
+                      </Grid>
+                      <Grid size={{ xs: 6 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Entradas (renda)
+                        </Typography>
+                        <Typography
+                          variant="subtitle1"
+                          className="tabular-nums"
+                          fontWeight={700}
+                          color="success.main"
+                        >
+                          {formatBRL(acc.totalCredits)}
+                        </Typography>
+                      </Grid>
                     </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Typography variant="caption" color="textSecondary">
-                        Entradas (renda)
-                      </Typography>
-                      <Typography variant="subtitle2" fontWeight={700} color="success.main">
-                        {formatBRL(acc.totalCredits)}
-                      </Typography>
-                    </Grid>
-                  </Grid>
 
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                  >
-                    <Typography variant="caption" color="textSecondary">
-                      Último mov.: {formatDateBR(acc.latestDate)}
-                    </Typography>
-                    <Button
-                      component={Link}
-                      href={`/movimentacoes?account=${acc.id}`}
-                      size="small"
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
                     >
-                      Ver extrato
-                    </Button>
+                      <Typography variant="caption" color="text.secondary">
+                        Último mov.: {formatDateBR(acc.latestDate)}
+                      </Typography>
+                      <Button
+                        component={Link}
+                        href={`/movimentacoes?account=${acc.id}`}
+                        size="small"
+                        variant="text"
+                        color="primary"
+                      >
+                        Ver extrato
+                      </Button>
+                    </Stack>
                   </Stack>
-                </Stack>
-              </DashboardCard>
-            </Grid>
-          ))}
+                </DashboardCard>
+              </Grid>
+            );
+          })}
         </Grid>
       )}
 
-      {/* TAB 1: Faturas de cartão (pluggy_bills) */}
+      {/* TAB 1: Faturas de cartão */}
       {tab === 1 && (
-        <Stack spacing={2.5}>
+        <Stack spacing={3}>
           <Box className="scroll-rail" sx={{ display: 'flex', gap: 1 }}>
             <Chip
               label="Todos os cartões"
               clickable
-              color={selectedCard === 'all' ? 'primary' : 'default'}
-              variant={selectedCard === 'all' ? 'filled' : 'outlined'}
               onClick={() => setSelectedCard('all')}
+              sx={{
+                borderRadius: '8px',
+                fontWeight: 600,
+                bgcolor:
+                  selectedCard === 'all'
+                    ? 'primary.main'
+                    : isDark
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'rgba(42,53,71,0.05)',
+                color: selectedCard === 'all' ? '#FFFFFF' : 'text.secondary',
+              }}
             />
             {cardLabels.map((lbl) => (
               <Chip
                 key={lbl}
                 label={lbl}
                 clickable
-                color={selectedCard === lbl ? 'primary' : 'default'}
-                variant={selectedCard === lbl ? 'filled' : 'outlined'}
                 onClick={() => setSelectedCard(lbl)}
+                sx={{
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  bgcolor:
+                    selectedCard === lbl
+                      ? 'primary.main'
+                      : isDark
+                        ? 'rgba(255,255,255,0.06)'
+                        : 'rgba(42,53,71,0.05)',
+                  color: selectedCard === lbl ? '#FFFFFF' : 'text.secondary',
+                }}
               />
             ))}
           </Box>
@@ -310,11 +346,11 @@ export default function AccountsClient({
                   },
                 ]}
                 type="bar"
-                height={260}
+                height={270}
                 width="100%"
               />
             ) : (
-              <Typography color="textSecondary" py={4} textAlign="center">
+              <Typography color="text.secondary" py={4} textAlign="center">
                 Nenhuma fatura encontrada.
               </Typography>
             )}
@@ -324,7 +360,7 @@ export default function AccountsClient({
             title="Histórico de Faturas"
             subtitle={`${filteredBills.length} fatura(s) registradas`}
           >
-            <Stack divider={<Divider flexItem />} spacing={1.25}>
+            <Stack divider={<Divider flexItem />} spacing={1.5}>
               {filteredBills.map((bill) => (
                 <Stack
                   key={bill.id}
@@ -334,18 +370,40 @@ export default function AccountsClient({
                   spacing={1.5}
                   py={0.5}
                 >
-                  <Box minWidth={0}>
-                    <Typography variant="subtitle2" fontWeight={700} noWrap>
-                      {bill.accountLabel}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Vencimento: <strong>{formatDateBR(bill.due_date)}</strong>
-                      {bill.closing_date
-                        ? ` • Fechamento: ${formatDateBR(bill.closing_date)}`
-                        : ''}
-                    </Typography>
-                  </Box>
-                  <Typography variant="subtitle1" fontWeight={700} flexShrink={0}>
+                  <Stack direction="row" spacing={1.5} alignItems="center" minWidth={0}>
+                    <Box
+                      sx={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: '8px',
+                        bgcolor: 'primary.light',
+                        color: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <IconCreditCard size={19} stroke={1.65} />
+                    </Box>
+                    <Box minWidth={0}>
+                      <Typography variant="subtitle2" fontWeight={600} noWrap>
+                        {bill.accountLabel}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Vencimento: <strong>{formatDateBR(bill.due_date)}</strong>
+                        {bill.closing_date
+                          ? ` • Fechamento: ${formatDateBR(bill.closing_date)}`
+                          : ''}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Typography
+                    variant="subtitle1"
+                    className="tabular-nums"
+                    fontWeight={700}
+                    flexShrink={0}
+                  >
                     {formatBRL(bill.total_amount)}
                   </Typography>
                 </Stack>
@@ -357,9 +415,9 @@ export default function AccountsClient({
 
       {/* TAB 2: Compromissos parcelados */}
       {tab === 2 && (
-        <Stack spacing={2.5}>
+        <Stack spacing={3}>
           {[
-            { title: 'Parcelamentos Ativos', list: activeInstallments },
+            { title: 'Compromissos Parcelados Ativos', list: activeInstallments },
             { title: 'Parcelamentos Concluídos', list: completedInstallments },
           ].map(
             (group) =>
@@ -369,35 +427,38 @@ export default function AccountsClient({
                   title={group.title}
                   subtitle={`${group.list.length} plano(s)`}
                 >
-                  <Grid container spacing={1.5}>
+                  <Grid container spacing={2}>
                     {group.list.map((inst) => (
                       <Grid key={inst.id} size={{ xs: 12, md: 6 }}>
                         <Paper
                           variant="outlined"
-                          sx={{ p: 2, borderRadius: 2, height: '100%' }}
+                          sx={{
+                            p: 2.25,
+                            borderRadius: '10px',
+                            height: '100%',
+                            bgcolor: isDark
+                              ? 'rgba(255,255,255,0.02)'
+                              : 'rgba(93,135,255,0.03)',
+                          }}
                         >
-                          <Stack spacing={1}>
+                          <Stack spacing={1.25}>
                             <Stack
                               direction="row"
                               justifyContent="space-between"
                               alignItems="flex-start"
                               spacing={1}
                             >
-                              <Typography variant="subtitle2" fontWeight={700}>
+                              <Typography variant="subtitle1" fontWeight={600}>
                                 {inst.merchant_name}
                               </Typography>
-                              <Chip
+                              <StatusChip
+                                tone={inst.status === 'active' ? 'primary' : 'success'}
                                 label={
                                   inst.status === 'active' ? 'Ativo' : 'Concluído'
                                 }
-                                size="small"
-                                color={
-                                  inst.status === 'active' ? 'primary' : 'success'
-                                }
-                                variant="outlined"
                               />
                             </Stack>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="text.secondary">
                               {inst.accountName} • Compra em{' '}
                               {formatDateBR(inst.purchase_date)}
                             </Typography>
@@ -408,7 +469,7 @@ export default function AccountsClient({
                               pt={0.5}
                             >
                               <Stack direction="row" spacing={0.75} alignItems="center">
-                                <IconCalendarEvent size={16} />
+                                <IconCalendarEvent size={16} color={theme.palette.primary.main} />
                                 <Typography variant="body2" fontWeight={600}>
                                   {inst.installment_count}x{' '}
                                   {inst.installmentAmount
@@ -416,7 +477,11 @@ export default function AccountsClient({
                                     : ''}
                                 </Typography>
                               </Stack>
-                              <Typography variant="subtitle2" fontWeight={700}>
+                              <Typography
+                                variant="subtitle2"
+                                className="tabular-nums"
+                                fontWeight={700}
+                              >
                                 Total: {formatBRL(inst.total_amount)}
                               </Typography>
                             </Stack>

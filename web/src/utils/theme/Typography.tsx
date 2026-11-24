@@ -1,66 +1,92 @@
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from 'next/font/google';
 
 export const plus = Plus_Jakarta_Sans({
-  weight: ["300", "400", "500", "600", "700"],
-  subsets: ["latin"],
-  display: "swap",
-  fallback: ["Helvetica", "Arial", "sans-serif"],
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['Helvetica', 'Arial', 'sans-serif'],
 });
 
 const typography: any = {
   fontFamily: plus.style.fontFamily,
   h1: {
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: '2.25rem',
-    lineHeight: '2.75rem',
+    lineHeight: 1.2,
+    letterSpacing: '-0.02em',
   },
   h2: {
-    fontWeight: 600,
-    fontSize: '1.875rem',
-    lineHeight: '2.25rem',
+    fontWeight: 700,
+    fontSize: '2rem',
+    lineHeight: 1.2,
+    letterSpacing: '-0.02em',
   },
   h3: {
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: '1.5rem',
-    lineHeight: '1.75rem',
+    lineHeight: 1.2,
+    letterSpacing: '-0.02em',
   },
   h4: {
-    fontWeight: 600,
-    fontSize: '1.3125rem',
-    lineHeight: '1.6rem',
+    fontWeight: 700,
+    fontSize: '1.25rem',
+    lineHeight: 1.25,
+    letterSpacing: '-0.02em',
   },
   h5: {
     fontWeight: 600,
     fontSize: '1.125rem',
-    lineHeight: '1.6rem',
+    lineHeight: 1.35,
+    letterSpacing: '-0.02em',
   },
   h6: {
     fontWeight: 600,
     fontSize: '1rem',
-    lineHeight: '1.2rem',
+    lineHeight: 1.4,
+    letterSpacing: '-0.02em',
   },
-  button: {
-    textTransform: 'capitalize',
-    fontWeight: 400,
+  subtitle1: {
+    fontSize: '0.9375rem',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    letterSpacing: '-0.015em',
+  },
+  subtitle2: {
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    lineHeight: 1.4,
+    letterSpacing: '-0.015em',
   },
   body1: {
     fontSize: '0.875rem',
     fontWeight: 400,
-    lineHeight: '1.334rem',
+    lineHeight: 1.45,
+    letterSpacing: '-0.01em',
   },
   body2: {
+    fontSize: '0.8125rem',
+    fontWeight: 400,
+    lineHeight: 1.4,
+    letterSpacing: '-0.01em',
+  },
+  caption: {
     fontSize: '0.75rem',
-    letterSpacing: '0rem',
     fontWeight: 400,
-    lineHeight: '1rem',
+    lineHeight: 1.4,
+    letterSpacing: '-0.01em',
   },
-  subtitle1: {
-    fontSize: '0.875rem',
-    fontWeight: 400,
+  overline: {
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    lineHeight: 1.4,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
   },
-  subtitle2: {
+  button: {
+    textTransform: 'none',
+    fontWeight: 600,
     fontSize: '0.875rem',
-    fontWeight: 400,
+    letterSpacing: '-0.01em',
   },
 };
 
