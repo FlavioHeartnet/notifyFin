@@ -122,7 +122,10 @@ export default function TransactionsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'), {
+    defaultMatches: false,
+    noSsr: false,
+  });
 
   const [searchInput, setSearchInput] = useState(initialFilters.q);
   const [selectedTx, setSelectedTx] = useState<TxListItem | null>(null);

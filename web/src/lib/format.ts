@@ -1,23 +1,68 @@
-const brlFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+const MONTHS_SHORT = [
+  'Jan',
+  'Fev',
+  'Mar',
+  'Abr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Set',
+  'Out',
+  'Nov',
+  'Dez',
+];
 
-const compactBrlFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-  notation: 'compact',
-  maximumFractionDigits: 1,
-});
+const MONTHS_LONG = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
 
+/**
+ * Deterministic BRL formatter (avoids Node vs Browser ICU non-breaking-space
+ * hydration mismatches).
+ */
 export function formatBRL(value: number | null | undefined): string {
-  return brlFormatter.format(Number(value ?? 0));
+  const num = Number(value ?? 0);
+  if (!Number.isFinite(num)) return 'R$ 0,00';
+  const negative = num < 0;
+  const fixed = Math.abs(num).toFixed(2);
+  const [intPart, decPart] = fixed.split('.');
+  const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${negative ? '-' : ''}R$ ${withThousands},${decPart}`;
 }
 
+/**
+ * Deterministic compact BRL formatter (avoids ICU compact-notation hydration
+ * differences across Node/Chrome/Safari).
+ */
 export function formatCompactBRL(value: number | null | undefined): string {
-  return compactBrlFormatter.format(Number(value ?? 0));
+  const num = Number(value ?? 0);
+  if (!Number.isFinite(num)) return 'R$ 0';
+  const negative = num < 0;
+  const abs = Math.abs(num);
+  const sign = negative ? '-' : '';
+
+  if (abs >= 1_000_000) {
+    const v = (abs / 1_000_000).toFixed(1).replace(/\.0$/, '').replace('.', ',');
+    return `${sign}R$ ${v} mi`;
+  }
+  if (abs >= 1_000) {
+    const v = (abs / 1_000).toFixed(1).replace(/\.0$/, '').replace('.', ',');
+    return `${sign}R$ ${v} mil`;
+  }
+  const v = abs.toFixed(0);
+  return `${sign}R$ ${v}`;
 }
 
 export function formatDateBR(dateStr: string | null | undefined): string {
@@ -28,40 +73,39 @@ export function formatDateBR(dateStr: string | null | undefined): string {
   return `${d}/${m}/${y}`;
 }
 
+const saoPauloPartsFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'America/Sao_Paulo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
 export function formatDateTimeBR(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
-  return new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-    timeZone: 'America/Sao_Paulo',
-  }).format(d);
+  const parts = saoPauloPartsFormatter.formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('day')}/${get('month')}/${get('year')}, ${get('hour')}:${get('minute')}`;
 }
 
 export function formatMonthLabel(monthKey: string): string {
-  // Accepts 'YYYY-MM' or ISO timestamp 'YYYY-MM-01...'
   const ym = monthKey.slice(0, 7);
   const [y, m] = ym.split('-');
-  if (!y || !m) return monthKey;
-  const date = new Date(Number(y), Number(m) - 1, 1);
-  const label = new Intl.DateTimeFormat('pt-BR', {
-    month: 'short',
-    year: '2-digit',
-  }).format(date);
-  return label.replace('.', '').replace(/^./, (c) => c.toUpperCase());
+  const idx = Number(m) - 1;
+  if (!y || idx < 0 || idx > 11) return monthKey;
+  return `${MONTHS_SHORT[idx]}/${y.slice(-2)}`;
 }
 
 export function formatMonthLong(monthKey: string): string {
   const ym = monthKey.slice(0, 7);
   const [y, m] = ym.split('-');
-  if (!y || !m) return monthKey;
-  const date = new Date(Number(y), Number(m) - 1, 1);
-  const label = new Intl.DateTimeFormat('pt-BR', {
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-  return label.replace(/^./, (c) => c.toUpperCase());
+  const idx = Number(m) - 1;
+  if (!y || idx < 0 || idx > 11) return monthKey;
+  return `${MONTHS_LONG[idx]} de ${y}`;
 }
 
 export const ACCOUNT_TYPE_LABELS: Record<string, string> = {

@@ -102,7 +102,10 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
   const pathname = usePathname();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'), {
+    defaultMatches: false,
+    noSsr: false,
+  });
   const {
     activeMode,
     toggleMode,

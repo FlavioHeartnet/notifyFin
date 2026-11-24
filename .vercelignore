@@ -1,0 +1,11 @@
+/*.zip
+/api
+/docs
+/prototype
+/supabase
+/notifyfin-schema.sql
+/progress.md
+/compose.test.yaml
+/.git
+**/node_modules
+**/.next

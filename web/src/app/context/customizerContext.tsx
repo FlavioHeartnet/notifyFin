@@ -102,7 +102,8 @@ export const CustomizerContextProvider: React.FC<CustomizerContextProps> = ({ ch
   };
 
   useEffect(() => {
-    document.documentElement.setAttribute('class', activeMode);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(activeMode);
     document.documentElement.setAttribute('dir', activeDir);
     document.documentElement.setAttribute('data-color-theme', activeTheme);
     document.documentElement.setAttribute('data-layout', activeLayout);

@@ -1,6 +1,5 @@
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
-import NextTopLoader from 'nextjs-toploader';
 import { CustomizerContextProvider } from '@/app/context/customizerContext';
 import { plus } from '@/utils/theme/Typography';
 import MyApp from './app';
@@ -30,8 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={plus.className} suppressHydrationWarning>
-      <body>
-        <NextTopLoader color="#5D87FF" showSpinner={false} />
+      <body suppressHydrationWarning>
         <CustomizerContextProvider>
           <MyApp>{children}</MyApp>
         </CustomizerContextProvider>
